@@ -1,0 +1,38 @@
+﻿name: Deploy static to public repo
+
+on:
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout private repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      # Подготовим артефакт: уберём служебные папки и добавим .nojekyll
+      - name: Prepare artifact
+        run: |
+          rm -rf .git .github
+          touch .nojekyll
+
+      - name: Push to public deploy repo
+        env:
+          TARGET_REPO: officialstarsbox/starsbox-miniapp-deploy
+          TARGET_BRANCH: main
+          GH_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
+        run: |
+          git init
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .
+          git commit -m "Deploy $GITHUB_SHA"
+          git branch -M "$TARGET_BRANCH"
+          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${TARGET_REPO}.git"
+          git push -f origin "$TARGET_BRANCH"

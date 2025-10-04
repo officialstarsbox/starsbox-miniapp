@@ -180,8 +180,9 @@ function bindStubs(){
 
     // Маршруты панелей
     const ROUTE = {
-      "buy-stars": "./pages/buy.html",
-      "gifts":     "./pages/gifts/index.html"
+      "buy-stars": "./pages/stars/index.html",
+      "gifts":     "./pages/gifts/index.html",
+      "steam":     "./pages/steam/index.html"
     };
     if (ROUTE[act]){
       window.location.href = ROUTE[act];

@@ -1,229 +1,230 @@
-(function(){
-  // ---------------------- helpers ----------------------
+(function () {
+  // ---------- helpers ----------
   function ready(fn){
     if (document.readyState !== 'loading') fn();
     else document.addEventListener('DOMContentLoaded', fn, { once: true });
   }
-  const $  = (s, r) => (r||document).querySelector(s);
+  const $ = (s, r) => (r || document).querySelector(s);
 
-  // ---------------------- main ----------------------
-  ready(function(){
-    // Back button
-    const backBtn = $('#backBtn');
-    if (backBtn){
-      const url = new URL(window.location.href);
-      const back = url.searchParams.get('back');
-      backBtn.addEventListener('click', () => back ? (window.location.href = back) : window.history.back());
-    }
+  // нормализация username: только [A-Za-z0-9_], до 32, и лидирующий '@'
+  function normalizeWithAt(raw){
+    const core = String(raw || '').replace(/@/g,'').replace(/[^a-zA-Z0-9_]/g,'').slice(0,32);
+    return core ? '@' + core : '';
+  }
 
-    // Username input: только латиница, цифры и _
-    const username = $('#tgUsername');
-    if (username){
-      const allowed = /[^A-Za-z0-9_]/g;        // всё, что НЕ латиница/цифра/_
-      const cyrillic = /[\u0400-\u04FF]/g;     // кириллица
-      username.addEventListener('input', () => {
-        const v = username.value;
-        // сначала убираем кириллицу, затем прочие недопустимые
-        let cleaned = v.replace(cyrillic, '');
-        cleaned = cleaned.replace(allowed, '');
-        if (v !== cleaned) username.value = cleaned;
-      });
+  // username из Telegram WebApp или ?tg_username=... (для локальных тестов)
+  function getSelfUsername(){
+    const tg = window.Telegram && window.Telegram.WebApp;
+    tg?.ready?.();
+    const u = tg?.initDataUnsafe?.user?.username;
+    if (u) return String(u).replace(/[^a-zA-Z0-9_]/g,'').slice(0,32);
+    try{
+      const q = new URLSearchParams(location.search).get('tg_username');
+      return q ? String(q).replace(/[^a-zA-Z0-9_]/g,'').slice(0,32) : null;
+    }catch{ return null; }
+  }
 
-      // Сворачивание мобильной клавиатуры:
-      // Enter => blur
-      username.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter'){
-          e.preventDefault();
-          username.blur();
+  ready(function () {
+    // ===== username =====
+    const usernameInput = $('#tgUsername');
+    if (usernameInput){
+      usernameInput.addEventListener('input', () => {
+        const v = usernameInput.value;
+        const nv = normalizeWithAt(v);
+        if (v !== nv){
+          usernameInput.value = nv;
+          try{ usernameInput.setSelectionRange(nv.length, nv.length); }catch(e){}
         }
       });
-      // Тап/клик вне поля => blur активного поля
-      function blurIfOutside(e){
-        const ae = document.activeElement;
-        if (!ae) return;
-        const isInput = ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA';
-        if (!isInput) return;
-        if (ae.contains(e.target)) return; // клик по самому полю
-        ae.blur();
-      }
-      document.addEventListener('pointerdown', blurIfOutside, { capture: true });
-      document.addEventListener('touchstart', blurIfOutside, { capture: true });
+      usernameInput.addEventListener('blur', () => {
+        if (usernameInput.value === '@') usernameInput.value = '';
+      });
+      usernameInput.addEventListener('keydown', e => {
+        if (e.key === 'Enter'){ e.preventDefault(); usernameInput.blur(); }
+      });
     }
 
-    // «Купить себе»: подставь логику, если знаешь username текущего пользователя
-    $('#buyForMeBtn')?.addEventListener('click', () => {
-      // пример: username.value = 'my_username';
-      // username.dispatchEvent(new Event('input'));
+    // ===== stars amount — только цифры =====
+    const starsAmount = $('#starsAmount');
+    if (starsAmount){
+      const digitsOnly = s => String(s || '').replace(/\D+/g, '');
+      starsAmount.addEventListener('input', () => {
+        const v = starsAmount.value;
+        const nv = digitsOnly(v).slice(0,5); // максимум 20000 → 5 знаков
+        if (v !== nv){
+          starsAmount.value = nv;
+          try{ starsAmount.setSelectionRange(nv.length, nv.length); }catch(e){}
+        }
+        updateTotal(); // поддерживаем "Итого"
+      });
+      starsAmount.addEventListener('beforeinput', e => {
+        if (e.inputType === 'insertText' && /\D/.test(e.data)) e.preventDefault();
+      });
+      starsAmount.addEventListener('keydown', e => {
+        if (e.key === 'Enter'){ e.preventDefault(); starsAmount.blur(); }
+      });
+    }
+
+    // ===== Пакеты =====
+    const packsList   = $('#packsList');
+    const packsToggle = $('#packsToggle');
+    let activePackEl  = null;
+    let suppressClear = false; // чтобы не сбрасывать активный пакет при программной подстановке
+
+    // Проставим иконки из data-атрибутов
+    if (packsList){
+      packsList.querySelectorAll('.pack-item').forEach(btn => {
+        const img  = btn.querySelector('.pack-icon img');
+        const icon = btn.getAttribute('data-icon');
+        if (img && icon) img.src = icon;
+      });
+    }
+
+    // Переключение развёрнутого списка
+    packsToggle?.addEventListener('click', () => {
+      const collapsed = packsList.getAttribute('data-collapsed') === 'true';
+      packsList.setAttribute('data-collapsed', collapsed ? 'false' : 'true');
+      packsToggle.textContent = collapsed ? 'Свернуть список пакетов' : 'Показать все пакеты';
+      // Кнопка автоматически «уедет» вниз, т.к. стоит после списка
     });
 
-    // Если нужно заменить иконку в рантайме — вот пример:
-    // const iconImg = document.querySelector('.user-icon img');
-    // if (iconImg) iconImg.src = '/path/to/your-20x20-icon.png';
-  });
-})();
+    // Выбор пакета
+    packsList?.addEventListener('click', (e) => {
+      const btn = e.target.closest('.pack-item');
+      if (!btn) return;
 
-(function(){
-  // ---------------------- helpers ----------------------
-  function ready(fn){
-    if (document.readyState !== 'loading') fn();
-    else document.addEventListener('DOMContentLoaded', fn, { once: true });
-  }
-  const $  = (s, r) => (r||document).querySelector(s);
-  const $$ = (s, r) => Array.from((r||document).querySelectorAll(s));
+      // Снять активность с предыдущего
+      if (activePackEl && activePackEl !== btn){
+        activePackEl.classList.remove('is-active');
+        const oldImg  = activePackEl.querySelector('.pack-icon img');
+        const oldIcon = activePackEl.getAttribute('data-icon');
+        if (oldImg && oldIcon) oldImg.src = oldIcon;
+      }
 
-  // Получение username из Telegram WebApp (или из query-параметра для локальных тестов)
-  const tg = (window.Telegram && window.Telegram.WebApp) ? window.Telegram.WebApp : null;
-  tg?.ready?.();
+      // Тоггл текущего
+      const isActive = btn.classList.toggle('is-active');
+      const img = btn.querySelector('.pack-icon img');
 
-  function getDevUsernameFallback(){
-    try {
-      const params = new URLSearchParams(location.search);
-      const v = params.get('tg_username');
-      return v ? v.trim() : null;
-    } catch { return null; }
-  }
+      if (isActive){
+        activePackEl = btn;
+        // заменить иконку на активную
+        const act = btn.getAttribute('data-icon-active');
+        if (img && act) img.src = act;
 
-  function getSelfUsername(){
-    const u = tg?.initDataUnsafe?.user?.username;
-    return (u && String(u).trim()) || getDevUsernameFallback() || null;
-  }
-
-  // нормализация в формат Telegram username (без @, только [A-Za-z0-9_])
-  function normalizeUsername(v){
-    return String(v || '')
-      .replace(/^@+/, '')               // убираем ведущие @
-      .replace(/[\u0400-\u04FF]/g, '')  // кириллицу в любом виде
-      .replace(/[^A-Za-z0-9_]/g, '');   // только латиница/цифры/_
-  }
-
-  // ---------------------- main ----------------------
-  ready(function(){
-    // Back button
-    const backBtn = $('#backBtn');
-    if (backBtn){
-      const url = new URL(window.location.href);
-      const back = url.searchParams.get('back');
-      backBtn.addEventListener('click', () => back ? (window.location.href = back) : window.history.back());
-    }
-
-    // Username input: только латиница, цифры и _
-    const username = $('#tgUsername');
-    if (username){
-      const notLatinDigitsUnderscore = /[^A-Za-z0-9_]/g;
-      const cyrillic = /[\u0400-\u04FF]/g;
-      username.addEventListener('input', () => {
-        const v = username.value;
-        let cleaned = v.replace(cyrillic, '').replace(notLatinDigitsUnderscore, '');
-        if (v !== cleaned) username.value = cleaned;
-      });
-
-      // Сворачивание мобильной клавиатуры: Enter => blur
-      username.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter'){
-          e.preventDefault();
-          username.blur();
+        // подставить кол-во звёзд в инпут
+        const count = String(btn.getAttribute('data-stars') || '').replace(/\D+/g, '');
+        if (count && starsAmount){
+          suppressClear = true;
+          starsAmount.value = count;
+          starsAmount.dispatchEvent(new Event('input', { bubbles: true }));
+          queueMicrotask(() => { suppressClear = false; });
         }
+      } else {
+        // вернули в неактивное состояние
+        activePackEl = null;
+        const def = btn.getAttribute('data-icon');
+        if (img && def) img.src = def;
+      }
+    });
+
+    // Любой ручной ввод — сбрасывает выбранный пакет
+    starsAmount?.addEventListener('input', () => {
+      if (suppressClear) return; // программная подстановка
+      if (!activePackEl) return;
+      const img = activePackEl.querySelector('.pack-icon img');
+      const def = activePackEl.getAttribute('data-icon');
+      activePackEl.classList.remove('is-active');
+      if (img && def) img.src = def;
+      activePackEl = null;
+    });
+
+// ===== Итоговая стоимость + валидация и включение оплаты по username =====
+const STARS_MIN = 50;
+const STARS_MAX = 20000;
+
+const nfRub2 = new Intl.NumberFormat('ru-RU', {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2
+});
+
+const totalCard  = document.getElementById('totalCard');
+const totalValue = document.getElementById('totalValue');
+const starsEl    = document.getElementById('starsAmount');
+const payButtons = Array.from(document.querySelectorAll('#paySbpBtn, #payCryptoBtn'));
+
+function setPayEnabled(on){
+  payButtons.forEach(btn => {
+    if (!btn) return;
+    btn.disabled = !on;
+    btn.classList.toggle('is-disabled', !on);
+    btn.setAttribute('aria-disabled', String(!on));
+  });
+}
+
+function getStarRate(){
+  const fromWin  = Number(window.STAR_RATE);
+  if (!isNaN(fromWin) && fromWin > 0) return fromWin;
+  const fromAttr = Number(totalCard?.dataset?.rate);
+  if (!isNaN(fromAttr) && fromAttr > 0) return fromAttr;
+  return 1.7;
+}
+
+function hasValidRecipient(){
+  const v = (document.getElementById('tgUsername')?.value || '').trim();
+  return /^@[A-Za-z0-9_]{1,32}$/.test(v);
+}
+
+function updateTotal(){
+  const qty = Number((starsEl?.value || '').replace(/\D+/g, ''));
+  const inRange = qty >= STARS_MIN && qty <= STARS_MAX;
+
+  if (!inRange){
+    if (totalValue) totalValue.textContent = '—';
+    setPayEnabled(false);
+    return;
+  }
+
+  const sum = qty * getStarRate();
+  if (totalValue) totalValue.textContent = `${nfRub2.format(sum)} руб.`;
+
+  const canPay = sum > 0 && hasValidRecipient();
+  setPayEnabled(canPay);
+}
+
+// пересчёт при изменении количества И при изменении получателя
+starsEl?.addEventListener('input', updateTotal);
+document.getElementById('tgUsername')?.addEventListener('input', updateTotal);
+
+// первичная инициализация
+setPayEnabled(false);
+updateTotal();
+
+    // ===== «Купить себе» — username берём в момент клика =====
+    const buySelfBtn = $('#buyForMeBtn') || $('#buySelfBtn');
+    if (buySelfBtn && usernameInput){
+      buySelfBtn.addEventListener('click', () => {
+        const me = getSelfUsername(); // ← каждый клик заново
+        if (!me){
+          window.Telegram?.WebApp?.showToast?.('В вашем профиле Telegram не указан username');
+          return;
+        }
+        usernameInput.value = '@' + me;
+        usernameInput.dispatchEvent(new Event('input', { bubbles: true }));
+        usernameInput.blur();
       });
     }
 
-    // Тап/клик вне любого инпута => blur активного поля (сворачиваем клавиатуру)
+    // ===== Сворачиваем клавиатуру по тапу вне инпута =====
     function blurIfOutside(e){
       const ae = document.activeElement;
       if (!ae) return;
       const isInput = ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA';
       if (!isInput) return;
-      if (ae.contains(e.target)) return; // клик по самому полю
+      if (ae.contains(e.target)) return;
       ae.blur();
     }
     document.addEventListener('pointerdown', blurIfOutside, { capture: true });
-    document.addEventListener('touchstart', blurIfOutside, { capture: true });
-
-    // «Купить себе» — подставляем username из Telegram Mini App
-    const buyForMeBtn = $('#buyForMeBtn');
-    if (buyForMeBtn && username){
-      const selfUsername = getSelfUsername();
-      if (!selfUsername){
-        // у пользователя в Telegram может не быть публичного username
-        buyForMeBtn.disabled = true;
-        buyForMeBtn.title = 'В вашем профиле Telegram не задан username';
-      } else {
-        buyForMeBtn.addEventListener('click', () => {
-          const normalized = normalizeUsername(selfUsername);
-          username.value = normalized;
-          // триггерим input, если дальше на это подписана логика
-          username.dispatchEvent(new Event('input', { bubbles: true }));
-          // удобно сразу убрать курсор и клавиатуру
-          username.blur();
-        });
-      }
-    }
-
+    document.addEventListener('touchstart',  blurIfOutside, { capture: true });
   });
 })();
 
-// helpers (если у вас уже объявлены $, $$ — пропустите эти 2 строки)
-const $  = (s, r=document) => r.querySelector(s);
-const $$ = (s, r=document) => Array.from(r.querySelectorAll(s));
-
-/* === Выбор получателя через системный выбор Telegram === */
-(function(){
-  const pickBtn   = $('#pickUserBtn');
-  const hint      = $('#pickUserHint');
-  const input     = $('#tgUsername');
-
-  // «Купить себе» — подставляем username текущего пользователя Mini App (если есть)
-  $('#fillSelfBtn')?.addEventListener('click', () => {
-    const tg = window.Telegram?.WebApp?.initDataUnsafe?.user;
-    const uname = tg?.username || '';
-    if (uname) {
-      input.value = uname.replace(/^@/, '');
-      input.dispatchEvent(new Event('input', { bubbles:true }));
-      input.blur();
-    }
-  });
-
-  // Нажали «выбрать в Telegram» — просим бота показать системную кнопку выбора пользователя
-  let stopPolling = null;
-  pickBtn?.addEventListener('click', () => {
-    if (!window.Telegram?.WebApp) return;
-    const requestId = Date.now();
-    // Отправляем боту команду: он пришлет клавиатуру с request_user
-    Telegram.WebApp.sendData(JSON.stringify({ action: 'request_user', request_id: requestId }));
-    // Покажем подсказку «ждем выбора»
-    hint?.removeAttribute('hidden');
-    // Начинаем опрос своего бэкенда — когда бот получит user_shared, он положит результат в /api/user-share
-    if (typeof stopPolling === 'function') stopPolling();
-    stopPolling = pollUserShare(requestId, (data) => {
-      // prefer username, fallback к id
-      const uname = (data.username || '').replace(/^@/, '');
-      input.value = uname || (data.user_id || '');
-      input.dispatchEvent(new Event('input', { bubbles:true }));
-      input.blur();
-      hint?.setAttribute('hidden', 'hidden');
-    }, () => {
-      // timeout/cancel
-      hint?.setAttribute('hidden', 'hidden');
-    });
-  });
-
-  function pollUserShare(requestId, onDone, onTimeout){
-    let died = false;
-    (async function loop(){
-      for (let i=0; i<45 && !died; i++){ // ~90 секунд при шаге 2с
-        try {
-          const res = await fetch(`/api/user-share?rid=${encodeURIComponent(requestId)}`, { cache:'no-store' });
-          if (res.ok){
-            const data = await res.json();
-            if (data && data.ready){
-              if (!died) onDone(data);
-              return;
-            }
-          }
-        } catch(_) {}
-        await new Promise(r => setTimeout(r, 2000));
-      }
-      if (!died && onTimeout) onTimeout();
-    })();
-    return () => { died = true; };
-  }
-})();

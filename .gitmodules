@@ -4,3 +4,7 @@
 [submodule "vendor/fragment-service"]
 	path = vendor/fragment-service
 	url = https://github.com/officialstarsbox/starsbox-fragment-service
+[submodule "vendor/starsbox-fragment-service"]
+	path = vendor/starsbox-fragment-service
+	url = https://github.com/officialstarsbox/starsbox-fragment-service.git
+	branch = main

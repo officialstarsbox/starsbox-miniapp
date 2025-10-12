@@ -1,10 +1,8 @@
 [submodule "vendor/starsbox-site"]
-	path = vendor/starsbox-site
-	url = https://github.com/officialstarsbox/starsbox-site
-[submodule "vendor/fragment-service"]
-	path = vendor/fragment-service
-	url = https://github.com/officialstarsbox/starsbox-fragment-service
+    path = vendor/starsbox-site
+    url  = https://github.com/officialstarsbox/starsbox-site
+
 [submodule "vendor/starsbox-fragment-service"]
-	path = vendor/starsbox-fragment-service
-	url = https://github.com/officialstarsbox/starsbox-fragment-service.git
-	branch = main
+    path = vendor/starsbox-fragment-service
+    url  = https://github.com/officialstarsbox/starsbox-fragment-service.git
+    branch = restore-from-d287500

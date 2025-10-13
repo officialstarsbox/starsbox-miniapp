@@ -342,11 +342,13 @@
       const payload = {
         provider,                 // "wata" | "heleket"
         product: PRODUCT,         // "ton"
-        tg_username: username,    // <-- ОБЯЗАТЕЛЬНО для TON
-        username,                 // для совместимости/логов
-        qty,                      // количество TON
-        amount_minor: amountMinor,
-        currency: CURRENCY
+        tg_username: username,    // ОБЯЗАТЕЛЬНО для TON
+        ton_amount: qty,          // ОБЯЗАТЕЛЬНО для TON (целое количество TON)
+        // ниже — оставим для совместимости/логов, не мешает
+        username,                 // дублируем
+        qty,                      // дублируем
+        amount_minor: amountMinor, // сумма в копейках (для платёжки)
+        currency: CURRENCY        // "RUB"
       };
 
       const resp = await fetch(`${API_BASE}/pay/initiate`, {

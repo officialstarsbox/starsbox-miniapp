@@ -215,75 +215,231 @@
   setButtonsEnabled(false);
   renderTotalAndButtons();
 })();
-
-// === TON binder ===
+/* ========= TON: фронт ↔ бэк ========= */
 (function () {
-  const api = window.starsboxApi;
-  if (!api) return console.error("[ton] starsboxApi not found");
+  const API_BASE = "https://api.starsbox.org";
+  const PRODUCT = "ton";
+  const CURRENCY = "RUB";
+  const MIN_TON = 1;
+  const MAX_TON = 300;
 
-  const $ = (id) => document.getElementById(id);
-  const usernameEl   = $("#username") || $("#user") || $("#recipient") || $("#tgUsername") || $("#input-username");
-  const qtyTonEl     = $("#qty") || $("#tonQty") || $("#amount") || $("#input-qty");
-  const totalEl      = $("#total") || $("#sum") || $("#totalAmount") || $("#total_price") || $("#total-amount");
-  const payWataBtn    = $("#pay-wata") || $("#btn-wata") || $("#paySbp") || $("#btnPayWata");
-  const payHeleketBtn = $("#pay-heleket") || $("#btn-heleket") || $("#payCrypto") || $("#btnPayHeleket");
+  const $ = (sel) => document.querySelector(sel);
 
-  // По умолчанию пусть будет RUB (для Wata). Если у тебя есть другой элемент для выбора — можно подставить.
-  const currency = (document.body.dataset.currency || "RUB").toUpperCase();
+  const tg = (window.Telegram && window.Telegram.WebApp) ? window.Telegram.WebApp : null;
 
-  function readUsername () {
-    const v = (usernameEl && (usernameEl.value || usernameEl.textContent) || "").trim();
-    if (!v) return null;
-    return v.startsWith("@") ? v : "@" + v;
-  }
-  function readQtyTon () {
-    const raw = (qtyTonEl && (qtyTonEl.value || qtyTonEl.textContent || qtyTonEl.dataset.value)) || "0";
-    // Количество TON обычно не в "микро", а в целых/десятичных. Для сервера — ему важен qty,
-    // amount_minor мы берём с UI total (ниже).
-    const n = parseFloat(String(raw).replace(",", "."));
-    return Number.isFinite(n) && n > 0 ? n : 0;
-  }
-  function readAmountMinor (fallbackBtn) {
-    if (totalEl) {
-      const raw = String(totalEl.value ?? totalEl.innerText ?? "").replace(/[^\d]/g, "");
-      if (raw) {
-        const v = parseInt(raw, 10);
-        if (Number.isFinite(v) && v > 0) return v;
-      }
-    }
-    if (fallbackBtn?.dataset?.amountMinor) {
-      const v = parseInt(fallbackBtn.dataset.amountMinor, 10);
-      if (Number.isFinite(v) && v > 0) return v;
-    }
-    return 0;
+  // Элементы
+  const usernameInput = $("#tgUsername");
+  const amountInput = $("#tonAmount");
+  const totalCard = $("#tonTotalCard");
+  const totalValue = $("#tonTotalValue");
+  const paySbpBtn = $("#paySbpBtn");
+  const payCryptoBtn = $("#payCryptoBtn");
+  const buyForMeBtn = $("#buyForMeBtn");
+
+  // ₽ за 1 TON берём из data-rate у #tonTotalCard (например, 300)
+  const RATE = (() => {
+    const raw = totalCard?.dataset?.rate || "1";
+    const v = parseFloat(String(raw).replace(",", "."));
+    return Number.isFinite(v) ? v : 1;
+  })();
+
+  // Утилиты
+  const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
+
+  function normalizeUsername(v) {
+    if (!v) return "";
+    let s = String(v).trim();
+    if (!s) return "";
+    if (s.startsWith("@")) return s;
+    if (/^[A-Za-z0-9_\.]+$/.test(s)) return "@" + s;
+    return s; // если странные символы — пусть бэк валидирует
   }
 
-  async function start(provider, btn) {
-    const username = readUsername();
-    const qty = readQtyTon();
-    const amount_minor = readAmountMinor(btn);
-
-    if (!username) return alert("Укажите @юзернейм получателя");
-    if (!qty) return alert("Укажите количество TON");
-    if (!amount_minor) return alert("Сумма к оплате не определена");
-
+  function formatRub(num) {
     try {
-      const r = await api.initiatePayment({
-        provider,
-        product: "ton",
-        username,
-        qty,                // количество TON
-        amount_minor,       // сумма к оплате из UI
-        currency
-      });
-      if (r?.payment_url) window.location.href = r.payment_url;
-      else alert(`Заказ создан: ${r?.orderId || "?"}`);
-    } catch (e) {
-      console.error(e);
-      alert("Ошибка при создании платежа");
+      return new Intl.NumberFormat("ru-RU", { style: "currency", currency: "RUB", maximumFractionDigits: 2 }).format(num);
+    } catch {
+      return `${(Math.round(num * 100) / 100).toFixed(2)} руб.`;
     }
   }
 
-  payWataBtn    && payWataBtn.addEventListener("click", (e) => { e.preventDefault(); start("wata",    e.currentTarget); });
-  payHeleketBtn && payHeleketBtn.addEventListener("click", (e) => { e.preventDefault(); start("heleket", e.currentTarget); });
+  function getQty() {
+    const raw = amountInput?.value || "";
+    const onlyDigits = raw.replace(/[^\d]/g, "");
+    const n = parseInt(onlyDigits, 10);
+    if (!Number.isFinite(n)) return 0;
+    return clamp(n, MIN_TON, MAX_TON);
+  }
+
+  function setQty(n) {
+    const v = clamp(Number(n) || 0, MIN_TON, MAX_TON);
+    amountInput.value = v ? String(v) : "";
+    updateTotal();
+  }
+
+  function updateTotal() {
+    const qty = getQty();
+    const amountRub = qty * RATE;                    // ₽
+    const amountMinor = Math.round(amountRub * 100); // копейки (целое)
+
+    totalValue.textContent = qty ? formatRub(amountRub) : "0,00 руб.";
+    totalValue.dataset.amountMinor = String(amountMinor);
+    totalValue.dataset.qty = String(qty);
+
+    // Включаем/выключаем кнопки оплаты по валидности
+    const uOk = !!normalizeUsername(usernameInput?.value || "");
+    const qOk = qty >= MIN_TON && qty <= MAX_TON;
+    const enable = uOk && qOk && amountMinor > 0;
+
+    [paySbpBtn, payCryptoBtn].forEach((b) => {
+      if (!b) return;
+      b.disabled = !enable;
+      b.setAttribute("aria-disabled", String(!enable));
+    });
+  }
+
+  function setLoading(is) {
+    [paySbpBtn, payCryptoBtn].forEach((b) => {
+      if (!b) return;
+      b.disabled = !!is;
+      b.classList.toggle("is-loading", !!is);
+      b.setAttribute("aria-disabled", String(!!is));
+    });
+  }
+
+  function openLink(url) {
+    if (!url) return;
+    if (tg && typeof tg.openLink === "function") {
+      try { tg.openLink(url); return; } catch {}
+    }
+    window.location.href = url;
+  }
+
+  async function initiatePayment(provider) {
+    try {
+      setLoading(true);
+
+      const username = normalizeUsername(usernameInput?.value || "");
+      if (!username) {
+        alert("Укажите username получателя (например, @username).");
+        return;
+      }
+
+      const qty = getQty();
+      if (!qty || qty < MIN_TON || qty > MAX_TON) {
+        alert(`Укажите количество TON от ${MIN_TON} до ${MAX_TON}.`);
+        return;
+      }
+
+      const amountMinor = Number(totalValue.dataset.amountMinor || "0");
+      if (!Number.isInteger(amountMinor) || amountMinor <= 0) {
+        alert("Сумма к оплате не рассчитана. Введите количество заново.");
+        return;
+      }
+
+      // Бэк ожидает ту же форму, что и на Stars:
+      // provider, product, username, qty, amount_minor, currency
+      const payload = {
+        provider,              // "wata" | "heleket"
+        product: PRODUCT,      // "ton"
+        username,              // "@username"
+        qty,                   // количество TON (штук)
+        amount_minor: amountMinor, // сумма в копейках
+        currency: CURRENCY     // "RUB"
+      };
+
+      const resp = await fetch(`${API_BASE}/pay/initiate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "omit",
+        body: JSON.stringify(payload)
+      });
+
+      if (!resp.ok) {
+        const txt = await resp.text().catch(() => "");
+        throw new Error(`HTTP ${resp.status} ${resp.statusText} ${txt || ""}`.trim());
+      }
+
+      const data = await resp.json();
+      if (!data || !data.ok || !data.payment_url) {
+        throw new Error(`Некорректный ответ сервера: ${JSON.stringify(data)}`);
+      }
+
+      openLink(data.payment_url);
+    } catch (e) {
+      console.error("[pay/initiate ton] error:", e);
+      alert(`Не удалось создать платёж.\n${e && e.message ? e.message : e}`);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // Prefill: «купить себе»
+  function initBuyForMe() {
+    if (!buyForMeBtn || !usernameInput) return;
+    buyForMeBtn.addEventListener("click", () => {
+      let u = "";
+      try {
+        const tgUser = tg?.initDataUnsafe?.user;
+        if (tgUser?.username) u = "@" + tgUser.username;
+      } catch {}
+      if (!u) {
+        const url = new URL(window.location.href);
+        const qU = url.searchParams.get("u");
+        if (qU) u = normalizeUsername(qU);
+      }
+      if (!u) {
+        alert("Не удалось определить ваш username из Telegram. Введите его вручную (например, @username).");
+        usernameInput.focus();
+        return;
+      }
+      usernameInput.value = u;
+      updateTotal();
+    });
+  }
+
+  // Слушатели
+  function initInputs() {
+    if (amountInput) {
+      amountInput.addEventListener("input", () => {
+        amountInput.value = amountInput.value.replace(/[^\d]/g, "");
+        updateTotal();
+      });
+      amountInput.addEventListener("blur", () => {
+        setQty(getQty()); // зажать в диапазон при потере фокуса
+      });
+    }
+
+    if (usernameInput) {
+      usernameInput.addEventListener("blur", () => {
+        usernameInput.value = normalizeUsername(usernameInput.value);
+        updateTotal();
+      });
+      usernameInput.addEventListener("input", () => {
+        // не трогаем на лету, только пересчитываем доступность кнопок
+        updateTotal();
+      });
+    }
+  }
+
+  // Кнопки оплаты
+  function initPayButtons() {
+    if (paySbpBtn) paySbpBtn.addEventListener("click", () => initiatePayment("wata"));
+    if (payCryptoBtn) payCryptoBtn.addEventListener("click", () => initiatePayment("heleket"));
+  }
+
+  // Инициализация
+  function init() {
+    try { tg && tg.ready && tg.ready(); } catch {}
+    initBuyForMe();
+    initInputs();
+    initPayButtons();
+    updateTotal(); // показать 0 ₽ и выставить disabled по состоянию
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
 })();

@@ -229,76 +229,290 @@
   // первичная проверка
   reevaluate();
 })();
-// === Premium binder ===
+/* ===== Telegram Premium: фронт ↔ бэк ===== */
 (function () {
-  const api = window.starsboxApi;
-  if (!api) return console.error("[premium] starsboxApi not found");
+  const API_BASE = "https://api.starsbox.org";
+  const PRODUCT  = "premium";
+  const CURRENCY = "RUB";
 
-  const $ = (id) => document.getElementById(id);
-  const usernameEl = $("#username") || $("#user") || $("#recipient") || $("#tgUsername") || $("#input-username");
-  // Пакеты 3/6/12 мес — предполагаем, что UI уже выставляет сумму итого.
-  const totalEl    = $("#total") || $("#sum") || $("#totalAmount") || $("#total_price") || $("#total-amount");
-  const payWataBtn    = $("#pay-wata") || $("#btn-wata") || $("#paySbp") || $("#btnPayWata");
-  const payHeleketBtn = $("#pay-heleket") || $("#btn-heleket") || $("#payCrypto") || $("#btnPayHeleket");
+  const $  = (s) => document.querySelector(s);
+  const $$ = (s) => Array.from(document.querySelectorAll(s));
+  const tg = (window.Telegram && window.Telegram.WebApp) ? window.Telegram.WebApp : null;
 
-  const currency = (document.body.dataset.currency || "RUB").toUpperCase();
+  // Элементы
+  const usernameInput = $("#tgUsername");
+  const buyForMeBtn   = $("#buyForMeBtn");
 
-  function readUsername() {
-    const v = (usernameEl && (usernameEl.value || usernameEl.textContent) || "").trim();
-    if (!v) return null;
-    return v.startsWith("@") ? v : "@" + v;
-  }
-  function readAmountMinor(fallbackBtn) {
-    if (totalEl) {
-      const raw = String(totalEl.value ?? totalEl.innerText ?? "").replace(/[^\d]/g, "");
-      if (raw) {
-        const v = parseInt(raw, 10);
-        if (Number.isFinite(v) && v > 0) return v;
-      }
-    }
-    if (fallbackBtn?.dataset?.amountMinor) {
-      const v = parseInt(fallbackBtn.dataset.amountMinor, 10);
-      if (Number.isFinite(v) && v > 0) return v;
-    }
-    return 0;
+  const packsWrap     = $("#subsPacks");
+  const packBtns      = $$("#subsPacks .pack-item");
+
+  const totalValueEl  = $("#totalValue");
+  const paySbpBtn     = $("#paySbpBtn");
+  const payCryptoBtn  = $("#payCryptoBtn");
+
+  /* ---------- утилиты ---------- */
+  function normalizeUsername(v) {
+    if (!v) return "";
+    let s = String(v).trim();
+    if (!s) return "";
+    if (s.startsWith("@")) return s;
+    if (/^[A-Za-z0-9_\.]+$/.test(s)) return "@" + s;
+    return s;
   }
 
-  // qty используем как "срок в месяцах" (ожидается, что UI где-то хранит 3/6/12),
-  // если нет явного поля — поставим 1, а цена берётся из total.
-  function readMonths() {
-    const el = document.querySelector("[data-premium-months].active") || document.querySelector("[data-premium-months].selected");
-    if (el) {
-      const n = parseInt(el.dataset.premiumMonths, 10);
-      if (Number.isFinite(n) && n > 0) return n;
-    }
-    return 1;
+  function parseRubFromText(text) {
+    if (!text) return 0;
+    const clean  = String(text).replace(/\s+/g, " ").replace(/[^\d,.\s]/g, "").trim();
+    const withDot = clean.replace(/\s/g, "").replace(",", ".");
+    const num = parseFloat(withDot);
+    return Number.isFinite(num) ? num : 0;
   }
 
-  async function start(provider, btn) {
-    const username = readUsername();
-    const amount_minor = readAmountMinor(btn);
-    const qty = readMonths();
-
-    if (!username) return alert("Укажите @юзернейм получателя");
-    if (!amount_minor) return alert("Сумма к оплате не определена");
-
+  function formatRub(num) {
     try {
-      const r = await api.initiatePayment({
-        provider,
-        product: "premium",
-        username,
-        qty,                // 3/6/12
-        amount_minor,
-        currency
-      });
-      if (r?.payment_url) window.location.href = r.payment_url;
-      else alert(`Заказ создан: ${r?.orderId || "?"}`);
-    } catch (e) {
-      console.error(e);
-      alert("Ошибка при создании платежа");
+      return new Intl.NumberFormat("ru-RU", { style: "currency", currency: "RUB", maximumFractionDigits: 2 }).format(num);
+    } catch {
+      return `${(Math.round(num * 100) / 100).toFixed(2)} руб.`;
     }
   }
 
-  payWataBtn    && payWataBtn.addEventListener("click", (e) => { e.preventDefault(); start("wata",    e.currentTarget); });
-  payHeleketBtn && payHeleketBtn.addEventListener("click", (e) => { e.preventDefault(); start("heleket", e.currentTarget); });
+  function setLoading(is) {
+    [paySbpBtn, payCryptoBtn].forEach((b) => {
+      if (!b) return;
+      b.disabled = !!is;
+      b.setAttribute("aria-disabled", String(!!is));
+      b.classList.toggle("is-loading", !!is);
+    });
+  }
+
+  function enablePayButtons(enable) {
+    [paySbpBtn, payCryptoBtn].forEach((b) => {
+      if (!b) return;
+      b.disabled = !enable;
+      b.setAttribute("aria-disabled", String(!enable));
+    });
+  }
+
+  function openLink(url) {
+    if (!url) return;
+    if (tg && typeof tg.openLink === "function") {
+      try { tg.openLink(url); return; } catch {}
+    }
+    window.location.href = url;
+  }
+
+  /* ---------- работа с пакетами ---------- */
+  function getSelectedPack() {
+    const btn = packBtns.find(b => b.classList.contains("is-selected"));
+    if (!btn) return null;
+    const months = parseInt(btn.dataset.months || "0", 10);
+    const price  = parseFloat(String(btn.dataset.price || "0").replace(",", "."));
+    return {
+      months: Number.isInteger(months) ? months : 0,
+      priceRub: Number.isFinite(price) ? price : 0,
+      icon: btn.dataset.icon || "",
+      iconActive: btn.dataset.iconActive || "",
+      el: btn
+    };
+  }
+
+  function refreshPackIcons() {
+    packBtns.forEach(btn => {
+      const img = btn.querySelector(".pack-icon img");
+      if (!img) return;
+      const active = btn.classList.contains("is-selected");
+      const src = active ? (btn.dataset.iconActive || btn.dataset.icon || "") : (btn.dataset.icon || "");
+      if (src) img.src = src;
+    });
+  }
+
+  function paintPackPrices() {
+    packBtns.forEach(btn => {
+      const priceEl = btn.querySelector("[data-price-el]");
+      if (!priceEl) return;
+      const price = parseFloat(String(btn.dataset.price || "0").replace(",", "."));
+      priceEl.textContent = Number.isFinite(price) ? formatRub(price) : "—";
+    });
+  }
+
+  function selectPack(btn) {
+    packBtns.forEach(b => {
+      b.classList.toggle("is-selected", b === btn);
+      b.setAttribute("aria-pressed", b === btn ? "true" : "false");
+    });
+    refreshPackIcons();
+    refreshTotal();
+    refreshPayState();
+  }
+
+  function refreshTotal() {
+    const sel = getSelectedPack();
+    const priceRub = sel ? sel.priceRub : 0;
+    const minor = Math.round(priceRub * 100);
+
+    if (totalValueEl) {
+      totalValueEl.textContent = formatRub(priceRub);
+      totalValueEl.dataset.amountMinor = String(minor);
+      totalValueEl.dataset.months = String(sel ? sel.months : 0);
+    }
+  }
+
+  function refreshPayState() {
+    const username = normalizeUsername(usernameInput?.value || "");
+    const months   = parseInt(totalValueEl?.dataset?.months || "0", 10);
+    const amountMinor = Number(totalValueEl?.dataset?.amountMinor || "0");
+
+    const enable = !!username && months > 0 && Number.isInteger(amountMinor) && amountMinor > 0;
+    enablePayButtons(enable);
+  }
+
+  /* ---------- действия оплаты ---------- */
+  async function initiatePayment(provider) {
+    try {
+      setLoading(true);
+
+      const username = normalizeUsername(usernameInput?.value || "");
+      if (!username) {
+        alert("Укажите username получателя (например, @username).");
+        return;
+      }
+
+      const months = parseInt(totalValueEl?.dataset?.months || "0", 10);
+      if (!months || months <= 0) {
+        alert("Выберите срок действия подписки (3 / 6 / 12 месяцев).");
+        return;
+      }
+
+      const amountMinor = Number(totalValueEl?.dataset?.amountMinor || "0");
+      if (!Number.isInteger(amountMinor) || amountMinor <= 0) {
+        alert("Сумма к оплате не рассчитана.");
+        return;
+      }
+
+      // Отправляем все понятные поля — если бэк вернёт 422, повторим «минимальным» набором
+      const payloadFull = {
+        provider,                 // "wata" | "heleket"
+        product: PRODUCT,         // "premium"
+        username,                 // "@user"
+        months,                   // предпочтительное поле срока
+        duration_months: months,  // на всякий случай дублируем
+        qty: months,              // если бэк ожидает qty
+        amount_minor: amountMinor,
+        currency: CURRENCY
+      };
+
+      let resp = await fetch(`${API_BASE}/pay/initiate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "omit",
+        body: JSON.stringify(payloadFull)
+      });
+
+      if (resp.status === 422) {
+        const payloadMin = {
+          provider,
+          product: PRODUCT,
+          username,
+          qty: months,
+          amount_minor: amountMinor,
+          currency: CURRENCY
+        };
+        resp = await fetch(`${API_BASE}/pay/initiate`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "omit",
+          body: JSON.stringify(payloadMin)
+        });
+      }
+
+      if (!resp.ok) {
+        const txt = await resp.text().catch(() => "");
+        throw new Error(`HTTP ${resp.status} ${resp.statusText} ${txt || ""}`.trim());
+      }
+
+      const data = await resp.json();
+      if (!data || !data.ok || !data.payment_url) {
+        throw new Error(`Некорректный ответ сервера: ${JSON.stringify(data)}`);
+      }
+
+      openLink(data.payment_url);
+    } catch (e) {
+      console.error("[pay/initiate premium] error:", e);
+      alert(`Не удалось создать платёж.\n${e && e.message ? e.message : e}`);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  /* ---------- инициализация ---------- */
+  function initBuyForMe() {
+    if (!buyForMeBtn || !usernameInput) return;
+    buyForMeBtn.addEventListener("click", () => {
+      let u = "";
+      try {
+        const tgUser = tg?.initDataUnsafe?.user;
+        if (tgUser?.username) u = "@" + tgUser.username;
+      } catch {}
+      if (!u) {
+        const url = new URL(window.location.href);
+        const qU = url.searchParams.get("u");
+        if (qU) u = normalizeUsername(qU);
+      }
+      if (!u) {
+        alert("Не удалось определить ваш username из Telegram. Введите его вручную (например, @username).");
+        usernameInput.focus();
+        return;
+      }
+      usernameInput.value = u;
+      refreshPayState();
+    });
+  }
+
+  function initInputs() {
+    if (usernameInput) {
+      usernameInput.addEventListener("blur", () => {
+        usernameInput.value = normalizeUsername(usernameInput.value);
+        refreshPayState();
+      });
+      usernameInput.addEventListener("input", refreshPayState);
+    }
+  }
+
+  function initPacks() {
+    paintPackPrices();
+
+    packBtns.forEach(btn => {
+      // проставим неактивную иконку на старте
+      const img = btn.querySelector(".pack-icon img");
+      if (img && btn.dataset.icon) img.src = btn.dataset.icon;
+
+      btn.addEventListener("click", () => selectPack(btn));
+    });
+
+    // опционально: выбрать по умолчанию первый пакет
+    if (packBtns[0]) selectPack(packBtns[0]);
+  }
+
+  function initPayButtons() {
+    if (paySbpBtn)   paySbpBtn.addEventListener("click", () => initiatePayment("wata"));
+    if (payCryptoBtn) payCryptoBtn.addEventListener("click", () => initiatePayment("heleket"));
+  }
+
+  function init() {
+    try { tg && tg.ready && tg.ready(); } catch {}
+
+    initBuyForMe();
+    initInputs();
+    initPacks();
+    initPayButtons();
+
+    refreshTotal();
+    refreshPayState();
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
 })();

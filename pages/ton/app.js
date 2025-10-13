@@ -340,12 +340,13 @@
       // Бэк ожидает ту же форму, что и на Stars:
       // provider, product, username, qty, amount_minor, currency
       const payload = {
-        provider,              // "wata" | "heleket"
-        product: PRODUCT,      // "ton"
-        username,              // "@username"
-        qty,                   // количество TON (штук)
-        amount_minor: amountMinor, // сумма в копейках
-        currency: CURRENCY     // "RUB"
+        provider,                 // "wata" | "heleket"
+        product: PRODUCT,         // "ton"
+        tg_username: username,    // <-- ОБЯЗАТЕЛЬНО для TON
+        username,                 // для совместимости/логов
+        qty,                      // количество TON
+        amount_minor: amountMinor,
+        currency: CURRENCY
       };
 
       const resp = await fetch(`${API_BASE}/pay/initiate`, {

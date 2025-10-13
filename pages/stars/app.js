@@ -228,3 +228,74 @@ updateTotal();
   });
 })();
 
+// === Stars binder ===
+(function () {
+  const api = window.starsboxApi;
+  if (!api) return console.error("[stars] starsboxApi not found");
+
+  // Попробуем найти элементы несколькими общими ID:
+  const $ = (id) => document.getElementById(id);
+  const usernameEl = $("#username") || $("#user") || $("#recipient") || $("#tgUsername") || $("#input-username");
+  const qtyEl      = $("#qty") || $("#quantity") || $("#amount") || $("#starsQty") || $("#input-qty");
+  const totalEl    = $("#total") || $("#sum") || $("#totalAmount") || $("#total_price") || $("#total-amount");
+  const payWataBtn    = $("#pay-wata") || $("#btn-wata") || $("#paySbp") || $("#btnPayWata");
+  const payHeleketBtn = $("#pay-heleket") || $("#btn-heleket") || $("#payCrypto") || $("#btnPayHeleket");
+
+  const currency = (document.body.dataset.currency || "RUB").toUpperCase();
+
+  function readUsername() {
+    const v = (usernameEl && (usernameEl.value || usernameEl.textContent) || "").trim();
+    if (!v) return null;
+    return v.startsWith("@") ? v : "@" + v;
+  }
+  function readQty() {
+    const raw = (qtyEl && (qtyEl.value || qtyEl.textContent || qtyEl.dataset.value)) || "0";
+    const n = parseInt(String(raw).replace(/[^\d]/g, ""), 10);
+    return Number.isFinite(n) && n > 0 ? n : 0;
+  }
+  function readAmountMinor(fallbackBtn) {
+    // 1) Пробуем взять из total (innerText или value)
+    if (totalEl) {
+      const raw = String(totalEl.value ?? totalEl.innerText ?? "").replace(/[^\d]/g, "");
+      if (raw) {
+        const v = parseInt(raw, 10);
+        if (Number.isFinite(v) && v > 0) return v;
+      }
+    }
+    // 2) Пробуем data-атрибут на кнопке
+    if (fallbackBtn && fallbackBtn.dataset && fallbackBtn.dataset.amountMinor) {
+      const v = parseInt(fallbackBtn.dataset.amountMinor, 10);
+      if (Number.isFinite(v) && v > 0) return v;
+    }
+    return 0;
+  }
+
+  async function start(provider, btn) {
+    const username = readUsername();
+    const qty = readQty();
+    const amount_minor = readAmountMinor(btn);
+
+    if (!username) return alert("Укажите @юзернейм получателя");
+    if (!qty) return alert("Укажите количество звёзд");
+    if (!amount_minor) return alert("Сумма к оплате не определена");
+
+    try {
+      const r = await api.initiatePayment({
+        provider,
+        product: "stars",
+        username,
+        qty,
+        amount_minor,
+        currency
+      });
+      if (r?.payment_url) window.location.href = r.payment_url;
+      else alert(`Заказ создан: ${r?.orderId || "?"}`);
+    } catch (e) {
+      console.error(e);
+      alert("Ошибка при создании платежа");
+    }
+  }
+
+  payWataBtn    && payWataBtn.addEventListener("click", (e) => { e.preventDefault(); start("wata",    e.currentTarget); });
+  payHeleketBtn && payHeleketBtn.addEventListener("click", (e) => { e.preventDefault(); start("heleket", e.currentTarget); });
+})();

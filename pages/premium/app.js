@@ -229,3 +229,76 @@
   // первичная проверка
   reevaluate();
 })();
+// === Premium binder ===
+(function () {
+  const api = window.starsboxApi;
+  if (!api) return console.error("[premium] starsboxApi not found");
+
+  const $ = (id) => document.getElementById(id);
+  const usernameEl = $("#username") || $("#user") || $("#recipient") || $("#tgUsername") || $("#input-username");
+  // Пакеты 3/6/12 мес — предполагаем, что UI уже выставляет сумму итого.
+  const totalEl    = $("#total") || $("#sum") || $("#totalAmount") || $("#total_price") || $("#total-amount");
+  const payWataBtn    = $("#pay-wata") || $("#btn-wata") || $("#paySbp") || $("#btnPayWata");
+  const payHeleketBtn = $("#pay-heleket") || $("#btn-heleket") || $("#payCrypto") || $("#btnPayHeleket");
+
+  const currency = (document.body.dataset.currency || "RUB").toUpperCase();
+
+  function readUsername() {
+    const v = (usernameEl && (usernameEl.value || usernameEl.textContent) || "").trim();
+    if (!v) return null;
+    return v.startsWith("@") ? v : "@" + v;
+  }
+  function readAmountMinor(fallbackBtn) {
+    if (totalEl) {
+      const raw = String(totalEl.value ?? totalEl.innerText ?? "").replace(/[^\d]/g, "");
+      if (raw) {
+        const v = parseInt(raw, 10);
+        if (Number.isFinite(v) && v > 0) return v;
+      }
+    }
+    if (fallbackBtn?.dataset?.amountMinor) {
+      const v = parseInt(fallbackBtn.dataset.amountMinor, 10);
+      if (Number.isFinite(v) && v > 0) return v;
+    }
+    return 0;
+  }
+
+  // qty используем как "срок в месяцах" (ожидается, что UI где-то хранит 3/6/12),
+  // если нет явного поля — поставим 1, а цена берётся из total.
+  function readMonths() {
+    const el = document.querySelector("[data-premium-months].active") || document.querySelector("[data-premium-months].selected");
+    if (el) {
+      const n = parseInt(el.dataset.premiumMonths, 10);
+      if (Number.isFinite(n) && n > 0) return n;
+    }
+    return 1;
+  }
+
+  async function start(provider, btn) {
+    const username = readUsername();
+    const amount_minor = readAmountMinor(btn);
+    const qty = readMonths();
+
+    if (!username) return alert("Укажите @юзернейм получателя");
+    if (!amount_minor) return alert("Сумма к оплате не определена");
+
+    try {
+      const r = await api.initiatePayment({
+        provider,
+        product: "premium",
+        username,
+        qty,                // 3/6/12
+        amount_minor,
+        currency
+      });
+      if (r?.payment_url) window.location.href = r.payment_url;
+      else alert(`Заказ создан: ${r?.orderId || "?"}`);
+    } catch (e) {
+      console.error(e);
+      alert("Ошибка при создании платежа");
+    }
+  }
+
+  payWataBtn    && payWataBtn.addEventListener("click", (e) => { e.preventDefault(); start("wata",    e.currentTarget); });
+  payHeleketBtn && payHeleketBtn.addEventListener("click", (e) => { e.preventDefault(); start("heleket", e.currentTarget); });
+})();

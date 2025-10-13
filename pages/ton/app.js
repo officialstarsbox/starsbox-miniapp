@@ -215,3 +215,75 @@
   setButtonsEnabled(false);
   renderTotalAndButtons();
 })();
+
+// === TON binder ===
+(function () {
+  const api = window.starsboxApi;
+  if (!api) return console.error("[ton] starsboxApi not found");
+
+  const $ = (id) => document.getElementById(id);
+  const usernameEl   = $("#username") || $("#user") || $("#recipient") || $("#tgUsername") || $("#input-username");
+  const qtyTonEl     = $("#qty") || $("#tonQty") || $("#amount") || $("#input-qty");
+  const totalEl      = $("#total") || $("#sum") || $("#totalAmount") || $("#total_price") || $("#total-amount");
+  const payWataBtn    = $("#pay-wata") || $("#btn-wata") || $("#paySbp") || $("#btnPayWata");
+  const payHeleketBtn = $("#pay-heleket") || $("#btn-heleket") || $("#payCrypto") || $("#btnPayHeleket");
+
+  // По умолчанию пусть будет RUB (для Wata). Если у тебя есть другой элемент для выбора — можно подставить.
+  const currency = (document.body.dataset.currency || "RUB").toUpperCase();
+
+  function readUsername () {
+    const v = (usernameEl && (usernameEl.value || usernameEl.textContent) || "").trim();
+    if (!v) return null;
+    return v.startsWith("@") ? v : "@" + v;
+  }
+  function readQtyTon () {
+    const raw = (qtyTonEl && (qtyTonEl.value || qtyTonEl.textContent || qtyTonEl.dataset.value)) || "0";
+    // Количество TON обычно не в "микро", а в целых/десятичных. Для сервера — ему важен qty,
+    // amount_minor мы берём с UI total (ниже).
+    const n = parseFloat(String(raw).replace(",", "."));
+    return Number.isFinite(n) && n > 0 ? n : 0;
+  }
+  function readAmountMinor (fallbackBtn) {
+    if (totalEl) {
+      const raw = String(totalEl.value ?? totalEl.innerText ?? "").replace(/[^\d]/g, "");
+      if (raw) {
+        const v = parseInt(raw, 10);
+        if (Number.isFinite(v) && v > 0) return v;
+      }
+    }
+    if (fallbackBtn?.dataset?.amountMinor) {
+      const v = parseInt(fallbackBtn.dataset.amountMinor, 10);
+      if (Number.isFinite(v) && v > 0) return v;
+    }
+    return 0;
+  }
+
+  async function start(provider, btn) {
+    const username = readUsername();
+    const qty = readQtyTon();
+    const amount_minor = readAmountMinor(btn);
+
+    if (!username) return alert("Укажите @юзернейм получателя");
+    if (!qty) return alert("Укажите количество TON");
+    if (!amount_minor) return alert("Сумма к оплате не определена");
+
+    try {
+      const r = await api.initiatePayment({
+        provider,
+        product: "ton",
+        username,
+        qty,                // количество TON
+        amount_minor,       // сумма к оплате из UI
+        currency
+      });
+      if (r?.payment_url) window.location.href = r.payment_url;
+      else alert(`Заказ создан: ${r?.orderId || "?"}`);
+    } catch (e) {
+      console.error(e);
+      alert("Ошибка при создании платежа");
+    }
+  }
+
+  payWataBtn    && payWataBtn.addEventListener("click", (e) => { e.preventDefault(); start("wata",    e.currentTarget); });
+  payHeleketBtn && payHeleketBtn.addEventListener("click", (e) => { e.preventDefault(); start("heleket", e.currentTarget); });
+})();

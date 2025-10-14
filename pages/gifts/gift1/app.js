@@ -351,14 +351,6 @@ function toast(msg){
     });
   }
 
-  function enablePayButtons(enable) {
-    [paySbpBtn, payCryptoBtn].forEach((b) => {
-      if (!b) return;
-      b.disabled = !enable;
-      b.setAttribute("aria-disabled", String(!enable));
-    });
-  }
-
   function openLink(url) {
     if (!url) return;
     if (tg && typeof tg.openLink === "function") {

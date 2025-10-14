@@ -288,32 +288,30 @@ function toast(msg){
 /* ========= Подарки: фронт ↔ бэк ========= */
 (function () {
   const API_BASE = "https://api.starsbox.org";
-  const PRODUCT = "gift";
+  const PRODUCT  = "gift";
   const CURRENCY = "RUB";
 
-  const $ = (sel) => document.querySelector(sel);
+  const $  = (sel) => document.querySelector(sel);
   const tg = (window.Telegram && window.Telegram.WebApp) ? window.Telegram.WebApp : null;
 
-  // Элементы страницы
-  const giftCard     = $("#giftCard");
-  const giftImg      = giftCard ? giftCard.querySelector(".gift-img") : null;
-  const giftDescEl   = $("#giftDesc");
-
-  const usernameInput = $("#tgUsername");          // получатель
+  // Элементы
+  const giftCard      = $("#giftCard");
+  const giftDescEl    = $("#giftDesc");
+  const usernameInput = $("#tgUsername");
   const buyForMeBtn   = $("#buyForMeBtn");
 
-  const senderInput   = $("#senderInput");         // отправитель
+  const senderInput   = $("#senderInput");
   const senderCount   = $("#senderCount");
   const fillMyBtn     = $("#fillMyUsernameBtn");
 
-  const messageInput  = $("#messageInput");        // сообщение
+  const messageInput  = $("#messageInput");
   const messageCount  = $("#messageCount");
 
-  const totalValueEl  = $("#totalValue");          // "Итого"
+  const totalValueEl  = $("#totalValue");
   const paySbpBtn     = $("#paySbpBtn");
   const payCryptoBtn  = $("#payCryptoBtn");
 
-  /* ---------- вспомогательные ---------- */
+  /* ---------- helpers ---------- */
   function normalizeUsername(v) {
     if (!v) return "";
     let s = String(v).trim();
@@ -321,18 +319,6 @@ function toast(msg){
     if (s.startsWith("@")) return s;
     if (/^[A-Za-z0-9_\.]+$/.test(s)) return "@" + s;
     return s;
-  }
-
-  function parseRubFromText(text) {
-    // "25,00 руб." → 25.00; "1 700 ₽" → 1700
-    if (!text) return 0;
-    const clean = String(text)
-      .replace(/\s+/g, " ")
-      .replace(/[^\d,.\s]/g, "") // выкинуть ₽, руб., и пр.
-      .trim();
-    const withDot = clean.replace(/\s/g, "").replace(",", ".");
-    const num = parseFloat(withDot);
-    return Number.isFinite(num) ? num : 0;
   }
 
   function formatRub(num) {
@@ -352,6 +338,14 @@ function toast(msg){
     });
   }
 
+  function enablePayButtons(enable) {
+    [paySbpBtn, payCryptoBtn].forEach((b) => {
+      if (!b) return;
+      b.disabled = !enable;
+      b.setAttribute("aria-disabled", String(!enable));
+    });
+  }
+
   function openLink(url) {
     if (!url) return;
     if (tg && typeof tg.openLink === "function") {
@@ -360,61 +354,50 @@ function toast(msg){
     window.location.href = url;
   }
 
-  /* ---------- идентификация подарка ---------- */
+  /* ---------- meta подарка ---------- */
   function getGiftMeta() {
-  const card = document.getElementById('giftCard');
-  let gift_id = null;
+    // gift_id берём из data-gift-id и ОСТАВЛЯЕМ СТРОКОЙ (чтобы не терять точность)
+    let gift_id = null;
+    if (giftCard?.dataset?.giftId) {
+      gift_id = String(giftCard.dataset.giftId).trim();
+    }
 
-  // 1) сначала из data-gift-id на карточке:
-  if (card?.dataset?.giftId) {
-    const n = Number(card.dataset.giftId);
-    if (Number.isFinite(n)) gift_id = n;
+    // цена: data-price -> текст "Итого"
+    let priceRub = NaN;
+    if (giftCard?.dataset?.price) {
+      const v = parseFloat(String(giftCard.dataset.price).replace(",", "."));
+      if (Number.isFinite(v) && v > 0) priceRub = v;
+    }
+    if (!Number.isFinite(priceRub) || priceRub <= 0) {
+      const raw = (totalValueEl?.textContent || "").replace(/[^\d,.-]/g, "").replace(",", ".");
+      const p = parseFloat(raw);
+      if (Number.isFinite(p) && p > 0) priceRub = p;
+    }
+    if (!Number.isFinite(priceRub) || priceRub <= 0) priceRub = 25;
+
+    return { gift_id, priceRub };
   }
 
-  // 2) цена (если хочешь тянуть из data-price):
-  let priceRub = NaN;
-  if (card?.dataset?.price) {
-    const v = parseFloat(String(card.dataset.price).replace(',', '.'));
-    if (Number.isFinite(v) && v > 0) priceRub = v;
-  }
-
-  // 3) если price не поставили в data-атрибут — читаем из «Итого»
-  if (!Number.isFinite(priceRub) || priceRub <= 0) {
-    const totalValueEl = document.getElementById('totalValue');
-    const raw = (totalValueEl?.textContent || '').replace(/[^\d,.-]/g, '').replace(',', '.');
-    const p = parseFloat(raw);
-    if (Number.isFinite(p) && p > 0) priceRub = p;
-  }
-
-  // 4) подстраховка
-  if (!Number.isFinite(priceRub) || priceRub <= 0) priceRub = 25;
-
-  return { gift_id, priceRub };
-}
-
-  /* ---------- сборка финального текста подарка ---------- */
+  /* ---------- итоговый текст ---------- */
   function buildGiftText() {
-    const sender = (senderInput?.value || '').trim();
-    const msg    = (messageInput?.value || '').trim();
-
-    if (sender && msg)   return `Отправитель: ${sender} | ${msg}`;
-    if (sender)          return `Отправитель: ${sender}`;
-    if (msg)             return msg;
-    return giftDescEl?.dataset?.default || 'Сообщение для получателя';
+    const sender = (senderInput?.value || "").trim();
+    const msg    = (messageInput?.value || "").trim();
+    if (sender && msg) return `Отправитель: ${sender} | ${msg}`;
+    if (sender)        return `Отправитель: ${sender}`;
+    if (msg)           return msg;
+    return giftDescEl?.dataset?.default || "Сообщение для получателя";
   }
 
   function refreshGiftDesc() {
-    const t = buildGiftText();
-    if (giftDescEl) giftDescEl.textContent = t;
+    if (giftDescEl) giftDescEl.textContent = buildGiftText();
   }
 
   function refreshCounters() {
-    if (senderCount && senderInput)  senderCount.textContent  = String(senderInput.value.length);
+    if (senderCount && senderInput)   senderCount.textContent  = String(senderInput.value.length);
     if (messageCount && messageInput) messageCount.textContent = String(messageInput.value.length);
   }
 
   function refreshTotal() {
-    // Перечитать «Итого», сохранить amount_minor в dataset
     const { priceRub } = getGiftMeta();
     const minor = Math.round(priceRub * 100);
     if (totalValueEl) {
@@ -424,71 +407,44 @@ function toast(msg){
   }
 
   function refreshPayState() {
-    const username = normalizeUsername(usernameInput?.value || "");
-    const { gift_code } = getGiftMeta();
+    const username    = normalizeUsername(usernameInput?.value || "");
+    const { gift_id } = getGiftMeta();               // <-- тут именно gift_id
     const amountMinor = Number(totalValueEl?.dataset?.amountMinor || "0");
-
-    const enable = !!username && !!gift_code && Number.isInteger(amountMinor) && amountMinor > 0;
+    const enable      = !!username && !!gift_id && Number.isInteger(amountMinor) && amountMinor > 0;
     enablePayButtons(enable);
   }
 
-  /* ---------- действия ---------- */
+  /* ---------- действие: создать платёж ---------- */
   async function initiatePayment(provider) {
     try {
       setLoading(true);
 
       const username = normalizeUsername(usernameInput?.value || "");
-      if (!username) {
-        alert("Укажите username получателя (например, @username).");
-        return;
-      }
+      if (!username) { alert("Укажите username получателя (например, @username)."); return; }
 
-      const { gift_code, priceRub } = getGiftMeta();
-      if (!gift_code) {
-        alert("Не удалось определить тип подарка. Обновите страницу или выберите другой подарок.");
-        return;
-      }
+      const { gift_id } = getGiftMeta();
+      if (!gift_id) { alert("Не указан gift_id у подарка. Добавьте data-gift-id на #giftCard."); return; }
 
       const amountMinor = Number(totalValueEl?.dataset?.amountMinor || "0");
-      if (!Number.isInteger(amountMinor) || amountMinor <= 0) {
-        alert("Сумма к оплате не рассчитана.");
-        return;
-      }
+      if (!Number.isInteger(amountMinor) || amountMinor <= 0) { alert("Сумма к оплате не рассчитана."); return; }
 
-      const gift_text = buildGiftText(); // именно ЭТО отправляем, как ты просил
-
-      // Основной полезный груз (минимальный — чтобы не словить 422)
       const payload = {
-        provider,              // "wata" | "heleket"
-        product: "gift",
-        username,              // "@user"
+        provider,
+        product: PRODUCT,
+        username,
         qty: 1,
         amount_minor: amountMinor,
-        currency: "RUB",
-        gift_id,               // <-- ЭТО ГЛАВНОЕ
-        gift_text: buildGiftText() // твой итоговый текст «Отправитель | Сообщение»
+        currency: CURRENCY,
+        gift_id,                 // строкой, без Number()
+        gift_text: buildGiftText()
       };
 
-      // Попробуем передать детали подарка — бэк должен их принять.
-      // Если вдруг отдаст 422, отправим второй запрос без extra-полей.
-      const withExtra = { ...payload, gift_code, gift_text };
-
-      let resp = await fetch(`${API_BASE}/pay/initiate`, {
+      const resp = await fetch(`${API_BASE}/pay/initiate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "omit",
-        body: JSON.stringify(withExtra)
+        body: JSON.stringify(payload)
       });
-
-      if (resp.status === 422) {
-        // повтор — минимальный формат, чтобы точно создался платёж
-        resp = await fetch(`${API_BASE}/pay/initiate`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "omit",
-          body: JSON.stringify(payload)
-        });
-      }
 
       if (!resp.ok) {
         const txt = await resp.text().catch(() => "");
@@ -499,7 +455,6 @@ function toast(msg){
       if (!data || !data.ok || !data.payment_url) {
         throw new Error(`Некорректный ответ сервера: ${JSON.stringify(data)}`);
       }
-
       openLink(data.payment_url);
     } catch (e) {
       console.error("[pay/initiate gift] error:", e);
@@ -509,25 +464,18 @@ function toast(msg){
     }
   }
 
-  /* ---------- инициализация UI ---------- */
+  /* ---------- init UI ---------- */
   function initBuyForMe() {
     if (!buyForMeBtn || !usernameInput) return;
     buyForMeBtn.addEventListener("click", () => {
       let u = "";
-      try {
-        const tgUser = tg?.initDataUnsafe?.user;
-        if (tgUser?.username) u = "@" + tgUser.username;
-      } catch {}
+      try { const tgUser = tg?.initDataUnsafe?.user; if (tgUser?.username) u = "@" + tgUser.username; } catch {}
       if (!u) {
         const url = new URL(window.location.href);
         const qU = url.searchParams.get("u");
         if (qU) u = normalizeUsername(qU);
       }
-      if (!u) {
-        alert("Не удалось определить ваш username из Telegram. Введите его вручную (например, @username).");
-        usernameInput.focus();
-        return;
-      }
+      if (!u) { alert("Не удалось определить ваш username из Telegram. Введите его вручную (например, @username)."); usernameInput.focus(); return; }
       usernameInput.value = u;
       refreshPayState();
     });
@@ -537,20 +485,13 @@ function toast(msg){
     if (!fillMyBtn || !senderInput) return;
     fillMyBtn.addEventListener("click", () => {
       let u = "";
-      try {
-        const tgUser = tg?.initDataUnsafe?.user;
-        if (tgUser?.username) u = "@" + tgUser.username;
-      } catch {}
+      try { const tgUser = tg?.initDataUnsafe?.user; if (tgUser?.username) u = "@" + tgUser.username; } catch {}
       if (!u) {
         const url = new URL(window.location.href);
         const qU = url.searchParams.get("me");
         if (qU) u = normalizeUsername(qU);
       }
-      if (!u) {
-        alert("Не удалось взять ваш username из Telegram. Введите его вручную (например, @username).");
-        senderInput.focus();
-        return;
-      }
+      if (!u) { alert("Не удалось взять ваш username из Telegram. Введите его вручную (например, @username)."); senderInput.focus(); return; }
       senderInput.value = u;
       refreshCounters();
       refreshGiftDesc();
@@ -558,50 +499,30 @@ function toast(msg){
   }
 
   function initInputs() {
-    if (usernameInput) {
-      usernameInput.addEventListener("blur", () => {
-        usernameInput.value = normalizeUsername(usernameInput.value);
-        refreshPayState();
-      });
-      usernameInput.addEventListener("input", refreshPayState);
-    }
+    usernameInput?.addEventListener("blur",  () => { usernameInput.value = normalizeUsername(usernameInput.value); refreshPayState(); });
+    usernameInput?.addEventListener("input", refreshPayState);
 
-    if (senderInput) {
-      senderInput.addEventListener("input", () => {
-        refreshCounters();
-        refreshGiftDesc();
-      });
-    }
-
-    if (messageInput) {
-      messageInput.addEventListener("input", () => {
-        refreshCounters();
-        refreshGiftDesc();
-      });
-    }
+    senderInput?.addEventListener("input",  () => { refreshCounters(); refreshGiftDesc(); });
+    messageInput?.addEventListener("input", () => { refreshCounters(); refreshGiftDesc(); });
   }
 
   function initPayButtons() {
-    if (paySbpBtn)   paySbpBtn.addEventListener("click", () => initiatePayment("wata"));
-    if (payCryptoBtn) payCryptoBtn.addEventListener("click", () => initiatePayment("heleket"));
+    paySbpBtn  && paySbpBtn.addEventListener("click",  () => initiatePayment("wata"));
+    payCryptoBtn && payCryptoBtn.addEventListener("click", () => initiatePayment("heleket"));
   }
 
   function init() {
     try { tg && tg.ready && tg.ready(); } catch {}
-    refreshTotal();        // прочитать "Итого" и сохранить amount_minor
-    refreshCounters();     // начальные счётчики
-    refreshGiftDesc();     // показать итоговый текст в превью
-    refreshPayState();     // активировать/деактивировать кнопки
-
-    initBuyForMe();        // «купить себе»
-    initFillMyUsername();  // «указать мой юзернейм»
-    initInputs();          // поля и зеркалирование в превью
-    initPayButtons();      // СБП / крипто
+    refreshTotal();
+    refreshCounters();
+    refreshGiftDesc();
+    refreshPayState();
+    initBuyForMe();
+    initFillMyUsername();
+    initInputs();
+    initPayButtons();
   }
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", init);
-  } else {
-    init();
-  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
+  else init();
 })();

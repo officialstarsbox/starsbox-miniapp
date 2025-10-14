@@ -415,53 +415,72 @@ function toast(msg){
 
   /* ---------- действие: создать платёж ---------- */
   async function initiatePayment(provider) {
-    try {
-      setLoading(true);
+  try {
+    setLoading(true);
 
-      const username = normalizeUsername(usernameInput?.value || "");
-      if (!username) { alert("Укажите username получателя (например, @username)."); return; }
-
-      const { gift_id } = getGiftMeta();
-      if (!gift_id) { alert("Не указан gift_id у подарка. Добавьте data-gift-id на #giftCard."); return; }
-
-      const amountMinor = Number(totalValueEl?.dataset?.amountMinor || "0");
-      if (!Number.isInteger(amountMinor) || amountMinor <= 0) { alert("Сумма к оплате не рассчитана."); return; }
-
-      const payload = {
-        provider,
-        product: PRODUCT,
-        username,
-        qty: 1,
-        amount_minor: amountMinor,
-        currency: CURRENCY,
-        gift_id,                 // строкой, без Number()
-        gift_text: buildGiftText()
-      };
-
-      const resp = await fetch(`${API_BASE}/pay/initiate`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "omit",
-        body: JSON.stringify(payload)
-      });
-
-      if (!resp.ok) {
-        const txt = await resp.text().catch(() => "");
-        throw new Error(`HTTP ${resp.status} ${resp.statusText} ${txt || ""}`.trim());
-      }
-
-      const data = await resp.json();
-      if (!data || !data.ok || !data.payment_url) {
-        throw new Error(`Некорректный ответ сервера: ${JSON.stringify(data)}`);
-      }
-      openLink(data.payment_url);
-    } catch (e) {
-      console.error("[pay/initiate gift] error:", e);
-      alert(`Не удалось создать платёж.\n${e && e.message ? e.message : e}`);
-    } finally {
-      setLoading(false);
+    const username = normalizeUsername(usernameInput?.value || "");
+    if (!username) {
+      alert("Укажите username получателя (например, @username).");
+      return;
     }
+
+    const { gift_id } = getGiftMeta();
+    if (!gift_id) {
+      alert("Не указан gift_id у подарка. Добавьте data-gift-id на #giftCard.");
+      return;
+    }
+
+    const amountMinor = Number(totalValueEl?.dataset?.amountMinor || "0");
+    if (!Number.isInteger(amountMinor) || amountMinor <= 0) {
+      alert("Сумма к оплате не рассчитана.");
+      return;
+    }
+
+    // пробуем взять user.id из мини-аппа; отправляем как строку
+    let tg_user_id;
+    try {
+      const id = tg?.initDataUnsafe?.user?.id;
+      if (id) tg_user_id = String(id);
+    } catch {}
+
+    const payload = {
+      provider,
+      product: "gift",
+      // КЛЮЧЕВЫЕ ИЗМЕНЕНИЯ ↓↓↓
+      tg_username: username,   // было: username
+      tg_user_id,              // опционально, если доступен
+      // ↑↑↑
+      qty: 1,
+      amount_minor: amountMinor,
+      currency: "RUB",
+      gift_id,                 // строкой, без Number()
+      gift_text: buildGiftText()
+    };
+
+    const resp = await fetch(`${API_BASE}/pay/initiate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "omit",
+      body: JSON.stringify(payload)
+    });
+
+    if (!resp.ok) {
+      const txt = await resp.text().catch(() => "");
+      throw new Error(`HTTP ${resp.status} ${resp.statusText} ${txt || ""}`.trim());
+    }
+
+    const data = await resp.json();
+    if (!data || !data.ok || !data.payment_url) {
+      throw new Error(`Некорректный ответ сервера: ${JSON.stringify(data)}`);
+    }
+    openLink(data.payment_url);
+  } catch (e) {
+    console.error("[pay/initiate gift] error:", e);
+    alert(`Не удалось создать платёж.\n${e && e.message ? e.message : e}`);
+  } finally {
+    setLoading(false);
   }
+}
 
   /* ---------- init UI ---------- */
   function initBuyForMe() {

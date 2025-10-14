@@ -117,8 +117,7 @@
       const m = (messageInput?.value || '').trim();
 
       if (s && m){
-        // пайп остаётся видимым, а сообщение уходит на новую строку
-        setGiftDescription(`Отправитель: ${s} | \n${m}`);
+        setGiftDescription(`Отправитель: ${s} | ${m}`);
       } else if (s){
         setGiftDescription(`Отправитель: ${s}`);
       } else if (m){
@@ -369,65 +368,46 @@ function toast(msg){
   }
 
   /* ---------- идентификация подарка ---------- */
-  // 1) из data-атрибутов, 2) из ?gift=, 3) по имени файла картинки
   function getGiftMeta() {
-    let code = giftCard?.dataset?.giftCode || "";
-    let priceRub = NaN;
+  const card = document.getElementById('giftCard');
+  let gift_id = null;
 
-    // цена приоритетом: data-price → текст в Итого
-    if (giftCard?.dataset?.price) {
-      priceRub = parseFloat(String(giftCard.dataset.price).replace(",", "."));
-    }
-    if (!Number.isFinite(priceRub)) {
-      priceRub = parseRubFromText(totalValueEl?.textContent || "");
-    }
-
-    // из URL ?gift=
-    const url = new URL(window.location.href);
-    if (!code) {
-      const qGift = url.searchParams.get("gift");
-      if (qGift) code = String(qGift).trim();
-    }
-
-    // по имени файла картинки
-    if (!code && giftImg?.src) {
-      const name = giftImg.src.split("/").pop()?.split(".")[0] || "";
-      // русские имена из твоего assets/gifts
-      const map = {
-        "сердце": "HEART",
-        "роза": "ROSE",
-        "букет": "FLOWERS",
-        "подарок": "GIFTBOX",
-        "торт": "CAKE",
-        "медведь": "BEAR",
-        "кольцо": "RING",
-        "ракета": "ROCKET",
-        "кубок": "CUP",
-        "брилиант": "DIAMOND",
-        "бутылка": "BOTTLE"
-      };
-      code = map[name.toLowerCase()] || name.toUpperCase() || "GIFT_GENERIC";
-    }
-
-    // если даже «Итого» пустой — подстрахуемся 25 ₽
-    if (!Number.isFinite(priceRub) || priceRub <= 0) priceRub = 25;
-
-    return { gift_code: code, priceRub };
+  // 1) сначала из data-gift-id на карточке:
+  if (card?.dataset?.giftId) {
+    const n = Number(card.dataset.giftId);
+    if (Number.isFinite(n)) gift_id = n;
   }
+
+  // 2) цена (если хочешь тянуть из data-price):
+  let priceRub = NaN;
+  if (card?.dataset?.price) {
+    const v = parseFloat(String(card.dataset.price).replace(',', '.'));
+    if (Number.isFinite(v) && v > 0) priceRub = v;
+  }
+
+  // 3) если price не поставили в data-атрибут — читаем из «Итого»
+  if (!Number.isFinite(priceRub) || priceRub <= 0) {
+    const totalValueEl = document.getElementById('totalValue');
+    const raw = (totalValueEl?.textContent || '').replace(/[^\d,.-]/g, '').replace(',', '.');
+    const p = parseFloat(raw);
+    if (Number.isFinite(p) && p > 0) priceRub = p;
+  }
+
+  // 4) подстраховка
+  if (!Number.isFinite(priceRub) || priceRub <= 0) priceRub = 25;
+
+  return { gift_id, priceRub };
+}
 
   /* ---------- сборка финального текста подарка ---------- */
   function buildGiftText() {
-    const sender = (senderInput?.value || "").trim();
-    const msg    = (messageInput?.value || "").trim();
+    const sender = (senderInput?.value || '').trim();
+    const msg    = (messageInput?.value || '').trim();
 
-    // твой UI показывает итог в #giftDesc — составим понятный текст
-    let finalText = "";
-    if (msg) finalText += msg;
-    if (sender) finalText += (finalText ? "\n" : "") + `Отправитель: ${sender}`;
-    if (!finalText) {
-      finalText = giftDescEl?.dataset?.default || "Сообщение для получателя";
-    }
-    return finalText;
+    if (sender && msg)   return `Отправитель: ${sender} | ${msg}`;
+    if (sender)          return `Отправитель: ${sender}`;
+    if (msg)             return msg;
+    return giftDescEl?.dataset?.default || 'Сообщение для получателя';
   }
 
   function refreshGiftDesc() {
@@ -485,13 +465,15 @@ function toast(msg){
       const gift_text = buildGiftText(); // именно ЭТО отправляем, как ты просил
 
       // Основной полезный груз (минимальный — чтобы не словить 422)
-      let payload = {
-        provider,             // "wata" | "heleket"
-        product: PRODUCT,     // "gift"
-        username,             // "@user"
-        qty: 1,               // всегда одна штука
+      const payload = {
+        provider,              // "wata" | "heleket"
+        product: "gift",
+        username,              // "@user"
+        qty: 1,
         amount_minor: amountMinor,
-        currency: CURRENCY
+        currency: "RUB",
+        gift_id,               // <-- ЭТО ГЛАВНОЕ
+        gift_text: buildGiftText() // твой итоговый текст «Отправитель | Сообщение»
       };
 
       // Попробуем передать детали подарка — бэк должен их принять.

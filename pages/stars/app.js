@@ -418,16 +418,6 @@ updateTotal();
         if (stars) setQty(stars);
       });
     });
-
-    if (packsToggle) {
-      packsToggle.addEventListener("click", () => {
-        const collapsed = packsList.getAttribute("data-collapsed") !== "false";
-        const next = !collapsed;
-        packsList.setAttribute("data-collapsed", String(next));
-        packsToggle.setAttribute("aria-expanded", String(!next));
-        packsToggle.textContent = next ? "Показать все пакеты" : "Скрыть";
-      });
-    }
   }
 
   // === Prefill: «купить себе» ===

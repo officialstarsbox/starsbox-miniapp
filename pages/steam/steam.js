@@ -77,11 +77,11 @@ const API_BASE = 'https://api.starsbox.org';
   // управляет конвертер ниже
   const reg = activeRegion(); // ru | kz | cis
   if (reg === 'ru') {
-    amountInput.placeholder = 'Не менее 100 руб';
+    amountInput.placeholder = 'От 100 до 45 000 руб';
   } else if (reg === 'kz') {
-    amountInput.placeholder = 'Не менее 100 руб (конвертируем в тенге)';
+    amountInput.placeholder = 'От 100 до 45 000 руб';
   } else { // cis
-    amountInput.placeholder = 'Не менее 100 руб (конвертируем в доллары)';
+    amountInput.placeholder = 'От 100 до 45 000 руб';
   }
 }
     function digitsOnly(s){ return (s||'').replace(/\D+/g, ''); }
@@ -127,6 +127,73 @@ const API_BASE = 'https://api.starsbox.org';
     // первичная инициализация
     updateCurrency();
     updatePayUI();
+
+    // --- Steam: создать заказ и открыть оплату через Wata DG ---
+async function createSteamOrder() {
+  const account = (loginInput?.value || '').trim();
+  if (!account) {
+    showInfoOverlay('Ошибка', 'Укажите логин Steam.');
+    return;
+  }
+
+  // сумма, которую пользователь ввёл в РУБЛЯХ (netAmount)
+  const raw = digitsOnly(amountInput?.value || '');
+  const net = raw ? parseInt(raw, 10) : NaN;
+  if (!net || isNaN(net) || net < LIMITS.min || net > LIMITS.max) {
+    showInfoOverlay('Ошибка', `Сумма должна быть от ${LIMITS.min} до ${LIMITS.max} ₽.`);
+    return;
+  }
+
+  // gross (amount) = net + наша комиссия
+  const pct   = Number(window.SB_FEE_PERCENT || 9);
+  const gross = Math.round(net * (1 + pct/100));
+
+  const payload = {
+    orderId: `ord_wata_${Date.now()}`,
+    account: account,
+    amount: Number(gross.toFixed(2)),    // сколько списываем с клиента (руб)
+    netAmount: Number(net.toFixed(2)),   // сколько зачислится в Steam (руб)
+    description: `Steam top-up ${net.toFixed(2)} RUB to ${account}`,
+    successUrl: successUrl,
+    returnUrl:  failUrl
+  };
+
+  const openLink = (url) => {
+    if (window.Telegram?.WebApp?.openLink) window.Telegram.WebApp.openLink(url);
+    else window.location.href = url;
+  };
+
+  try {
+    payBtn.disabled = true;
+    payBtn.textContent = 'Открываем оплату…';
+
+    const res = await fetch(`${API_BASE}/wata/dg/steam/orders`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.detail || JSON.stringify(data));
+
+    const url = data.paymentLink || data.url;
+    if (!url) throw new Error('paymentLink не вернулся от провайдера');
+
+    openLink(url);
+  } catch (err) {
+    console.error('steam pay error:', err);
+    showInfoOverlay('Не удалось создать оплату', `Попробуйте ещё раз.<br><small>${String(err.message || err)}</small>`);
+    payBtn.disabled = false;
+    updatePayUI(); // вернуть исходный текст кнопки
+  }
+}
+
+// подвесить обработчик на кнопку оплаты
+payBtn?.addEventListener('click', (e) => {
+  e.preventDefault();
+  if (payBtn.disabled) return;
+  createSteamOrder();
+});
 
     // Info overlays (по кликам внутри steam-info)
     const INFO = {
@@ -274,7 +341,7 @@ const API_BASE = 'https://api.starsbox.org';
   // --- Карта: регион -> валюта зачисления
   const REGION_TO_CUR = { ru: 'RUB', kz: 'KZT', cis: 'USD' };
   const CUR_ICON  = { RUB: '₽', KZT: '₸', USD: '$' };
-  const CUR_LABEL = { RUB: 'Рубль', KZT: 'Тенге', USD: 'Доллар США' };
+  const CUR_LABEL = { RUB: 'RUB', KZT: 'KZT', USD: 'USD' };
 
   // Ищем активный регион по .is-active или aria-pressed="true"
   function getRegion(){

@@ -179,7 +179,7 @@ function updateTotal(){
   const inRange = qty >= STARS_MIN && qty <= STARS_MAX;
 
   if (!inRange){
-    if (totalValue) totalValue.textContent = '—';
+    if (totalValue) totalValue.textContent = '0';
     setPayEnabled(false);
     return;
   }

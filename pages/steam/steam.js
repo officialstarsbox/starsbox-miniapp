@@ -163,7 +163,7 @@ async function createSteamOrder() {
 
   try {
     payBtn.disabled = true;
-    payBtn.textContent = 'Открываем оплату…';
+    payBtn.textContent = 'Открываем страницу оплаты…';
 
     const res = await fetch(`${API_BASE}/wata/dg/steam/orders`, {
       method: 'POST',
@@ -308,7 +308,7 @@ payBtn?.addEventListener('click', (e) => {
       creditedEl.textContent = nf2.format(Math.max(0, credited));
     }catch(e){
       console.error('Steam convert error:', e);
-      creditedEl.textContent = '—';
+      creditedEl.textContent = '0';
     }
   }
 
@@ -403,7 +403,7 @@ payBtn?.addEventListener('click', (e) => {
 
     // Если сервис не задан — вывести "—" и выйти
     if (!SERVICE_BASE){
-      creditValue.textContent = '—';
+      creditValue.textContent = '0';
       console.warn('[steam] SERVICE_BASE пуст, задайте <body data-service-base="...">');
       return;
     }
@@ -424,12 +424,12 @@ payBtn?.addEventListener('click', (e) => {
         const got = Number(data.result || 0);
         creditValue.textContent = fmt(got, to);
       } else {
-        creditValue.textContent = '—';
+        creditValue.textContent = '0';
         console.warn('[steam] ошибка расчёта', data);
       }
     }catch(err){
       if (err.name === 'AbortError') return; // нормальная отмена
-      creditValue.textContent = '—';
+      creditValue.textContent = '0';
       console.warn('[steam] запрос не удался', err);
     }
   }
@@ -541,7 +541,7 @@ async function updateCreditBox(){
     // Ничего не ввели — ставим дефисы/нулевые значения
     const meta = CURRENCY_META[toCur] || CURRENCY_META.RUB;
     iconEl.textContent  = meta.symbol;
-    valueEl.textContent = '—';
+    valueEl.textContent = '0';
     unitEl.textContent  = meta.name;
     return;
   }
@@ -571,7 +571,7 @@ async function updateCreditBox(){
   if (result == null){
     // Ошибка конвертации
     iconEl.textContent  = meta.symbol;
-    valueEl.textContent = '—';
+    valueEl.textContent = '0';
     unitEl.textContent  = meta.name;
     return;
   }

@@ -488,9 +488,6 @@
 
       btn.addEventListener("click", () => selectPack(btn));
     });
-
-    // опционально: выбрать по умолчанию первый пакет
-    if (packBtns[0]) selectPack(packBtns[0]);
   }
 
   function initPayButtons() {

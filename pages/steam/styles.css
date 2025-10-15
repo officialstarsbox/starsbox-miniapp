@@ -225,7 +225,7 @@ body.steam-page::before{
   background: var(--cis-banner-bg);
   border: 1px solid var(--card-brd);
 }
-.steam-info__text{ margin: 0; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.steam-info__text{ margin: 0; color: var(--muted); font-size: 11px; line-height: 1.45; }
 .steam-link{
   background: transparent; border: 0; padding: 0 2px; font: inherit; color: #5266ff; cursor: pointer;
 }

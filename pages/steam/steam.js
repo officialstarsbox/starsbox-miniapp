@@ -77,11 +77,11 @@ const API_BASE = 'https://api.starsbox.org';
   // управляет конвертер ниже
   const reg = activeRegion(); // ru | kz | cis
   if (reg === 'ru') {
-    amountInput.placeholder = 'От 100 до 45 000 руб';
+    amountInput.placeholder = 'от 100 до 45 000 руб';
   } else if (reg === 'kz') {
-    amountInput.placeholder = 'От 100 до 45 000 руб';
+    amountInput.placeholder = 'от 100 до 45 000 руб';
   } else { // cis
-    amountInput.placeholder = 'От 100 до 45 000 руб';
+    amountInput.placeholder = 'от 100 до 45 000 руб';
   }
 }
     function digitsOnly(s){ return (s||'').replace(/\D+/g, ''); }
@@ -154,8 +154,6 @@ async function createSteamOrder() {
     amount: Number(gross.toFixed(2)),    // сколько списываем с клиента (руб)
     netAmount: Number(net.toFixed(2)),   // сколько зачислится в Steam (руб)
     description: `Steam top-up ${net.toFixed(2)} RUB to ${account}`,
-    successUrl: successUrl,
-    returnUrl:  failUrl
   };
 
   const openLink = (url) => {
@@ -454,9 +452,9 @@ payBtn?.addEventListener('click', (e) => {
 
     // при переключении региона можно также менять плейсхолдер под валюту:
     const to = getTargetCurrency();
-    if (to === 'RUB')      amountInput.placeholder = 'Не менее 100 руб';
-    else if (to === 'KZT') amountInput.placeholder = 'Не менее 100 руб (конвертируем в тенге)';
-    else if (to === 'USD') amountInput.placeholder = 'Не менее 100 руб (конвертируем в доллары)';
+    if (to === 'RUB')      amountInput.placeholder = 'от 100 до 45 000 руб';
+    else if (to === 'KZT') amountInput.placeholder = 'от 100 до 45 000 руб';
+    else if (to === 'USD') amountInput.placeholder = 'от 100 до 45 000 руб';
 
     recalcDebounced();
   });
@@ -499,9 +497,9 @@ async function convertAmount(amount, from, to){
 
 // Красивые подписи и символы валют
 const CURRENCY_META = {
-  RUB: { symbol: '₽', name: 'Рубль' },
-  USD: { symbol: '$', name: 'Доллар' },
-  KZT: { symbol: '₸', name: 'Тенге' },
+  RUB: { symbol: '₽', name: 'RUB' },
+  USD: { symbol: '$', name: 'USD' },
+  KZT: { symbol: '₸', name: 'KZT' },
 };
 
 // Определяем валюту по выбранному региону (кнопки RU/KZ/CIS)

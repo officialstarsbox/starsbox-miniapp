@@ -1,5 +1,6 @@
 // БАЗА API StarsBox Fragment Service (наш домен)
 const API_BASE = 'https://api.starsbox.org';
+
 (function(){
   // ---------------------- helpers ----------------------
   function ready(fn){
@@ -8,6 +9,22 @@ const API_BASE = 'https://api.starsbox.org';
   }
   const $  = (s, r) => (r||document).querySelector(s);
   const $$ = (s, r) => Array.from((r||document).querySelectorAll(s));
+
+  // ✅ Telegram helpers + открытие ссылок внутри мини-аппа
+  const tg = (window.Telegram && window.Telegram.WebApp) ? window.Telegram.WebApp : null;
+  function openLink(url){
+    if (!url) return;
+    // 1) приоритет — твой общий helper из /app.js
+    if (typeof window.openInsideTelegram === 'function') {
+      try { window.openInsideTelegram(url); return; } catch(e){}
+    }
+    // 2) fallback — SDK Telegram
+    if (tg && typeof tg.openLink === 'function') {
+      try { tg.openLink(url); return; } catch(e){}
+    }
+    // 3) совсем уж fallback — обычный редирект
+    window.location.href = url;
+  }
 
   // ---------------------- overlays ----------------------
   function showInfoOverlay(title, html){
@@ -73,17 +90,16 @@ const API_BASE = 'https://api.starsbox.org';
       return btn ? btn.getAttribute('data-region') : 'ru'; // ru | kz | cis
     }
     function updateCurrency(){
-  // только плейсхолдер под выбранный регион; иконку/название валюты
-  // управляет конвертер ниже
-  const reg = activeRegion(); // ru | kz | cis
-  if (reg === 'ru') {
-    amountInput.placeholder = 'от 100 до 45 000 руб';
-  } else if (reg === 'kz') {
-    amountInput.placeholder = 'от 100 до 45 000 руб';
-  } else { // cis
-    amountInput.placeholder = 'от 100 до 45 000 руб';
-  }
-}
+      // placeholder под выбранный регион
+      const reg = activeRegion(); // ru | kz | cis
+      if (reg === 'ru') {
+        amountInput.placeholder = 'от 100 до 45 000 руб';
+      } else if (reg === 'kz') {
+        amountInput.placeholder = 'от 100 до 45 000 руб';
+      } else { // cis
+        amountInput.placeholder = 'от 100 до 45 000 руб';
+      }
+    }
     function digitsOnly(s){ return (s||'').replace(/\D+/g, ''); }
     function clamp(n){
       if (isNaN(n)) return NaN;
@@ -92,28 +108,25 @@ const API_BASE = 'https://api.starsbox.org';
       return n;
     }
     function updatePayUI(){
-  if (!amountInput) return;
+      if (!amountInput) return;
 
-  const raw = digitsOnly(amountInput.value);
-  if (raw !== amountInput.value) amountInput.value = raw;
+      const raw = digitsOnly(amountInput.value);
+      if (raw !== amountInput.value) amountInput.value = raw;
 
-  const amount = raw ? parseInt(raw, 10) : NaN;
+      const amount = raw ? parseInt(raw, 10) : NaN;
 
-  // невалидное значение — только выключаем кнопку и сбрасываем её текст.
-  // creditValue НЕ трогаем (пусть показывает последний корректный расчёт
-  // или «—», который поставит конвертер).
-  if (!amount || isNaN(amount) || amount < LIMITS.min || amount > LIMITS.max){
-    payBtn.textContent = 'Оплатить';
-    payBtn.disabled = true;
-    return;
-  }
+      if (!amount || isNaN(amount) || amount < LIMITS.min || amount > LIMITS.max){
+        payBtn.textContent = 'Оплатить';
+        payBtn.disabled = true;
+        return;
+      }
 
-  // считаем только сумму к оплате с комиссией
-  const pct   = Number(window.SB_FEE_PERCENT || 9.0);
-  const total = Math.round(amount * (1 + pct/100));
-  payBtn.textContent = `Оплатить ${nfRu.format(total)} ₽`;
-  payBtn.disabled = false;
-}
+      // сумма к оплате с комиссией
+      const pct   = Number(window.SB_FEE_PERCENT || 9.0);
+      const total = Math.round(amount * (1 + pct/100));
+      payBtn.textContent = `Оплатить ${nfRu.format(total)} ₽`;
+      payBtn.disabled = false;
+    }
 
     amountInput?.addEventListener('input', updatePayUI);
     amountInput?.addEventListener('blur', () => {
@@ -128,70 +141,76 @@ const API_BASE = 'https://api.starsbox.org';
     updateCurrency();
     updatePayUI();
 
+    // ✅ адреса возврата в мини-апп после оплаты (страницы сделаем позже)
+    const ORIGIN          = location.origin || 'https://starsbox.org';
+    const THANKS_SUCCESS  = ORIGIN + '/pay/thanks/success';
+    const THANKS_FAIL     = ORIGIN + '/pay/thanks/fail';
+
     // --- Steam: создать заказ и открыть оплату через Wata DG ---
-async function createSteamOrder() {
-  const account = (loginInput?.value || '').trim();
-  if (!account) {
-    showInfoOverlay('Ошибка', 'Укажите логин Steam.');
-    return;
-  }
+    async function createSteamOrder() {
+      const account = (loginInput?.value || '').trim();
+      if (!account) {
+        showInfoOverlay('Ошибка', 'Укажите логин Steam.');
+        return;
+      }
 
-  // сумма, которую пользователь ввёл в РУБЛЯХ (netAmount)
-  const raw = digitsOnly(amountInput?.value || '');
-  const net = raw ? parseInt(raw, 10) : NaN;
-  if (!net || isNaN(net) || net < LIMITS.min || net > LIMITS.max) {
-    showInfoOverlay('Ошибка', `Сумма должна быть от ${LIMITS.min} до ${LIMITS.max} ₽.`);
-    return;
-  }
+      // сумма, которую пользователь ввёл в РУБЛЯХ (netAmount)
+      const raw = digitsOnly(amountInput?.value || '');
+      const net = raw ? parseInt(raw, 10) : NaN;
+      if (!net || isNaN(net) || net < LIMITS.min || net > LIMITS.max) {
+        showInfoOverlay('Ошибка', `Сумма должна быть от ${LIMITS.min} до ${LIMITS.max} ₽.`);
+        return;
+      }
 
-  // gross (amount) = net + наша комиссия
-  const pct   = Number(window.SB_FEE_PERCENT || 9);
-  const gross = Math.round(net * (1 + pct/100));
+      // gross (amount) = net + наша комиссия
+      const pct   = Number(window.SB_FEE_PERCENT || 9);
+      const gross = Math.round(net * (1 + pct/100));
 
-  const payload = {
-    orderId: `ord_wata_${Date.now()}`,
-    account: account,
-    amount: Number(gross.toFixed(2)),    // сколько списываем с клиента (руб)
-    netAmount: Number(net.toFixed(2)),   // сколько зачислится в Steam (руб)
-    description: `Steam top-up ${net.toFixed(2)} RUB to ${account}`,
-  };
+      // ❗ минимальные изменения: добавили successUrl/returnUrl
+      const payload = {
+        orderId: `ord_wata_${Date.now()}`,
+        account: account,
+        amount: Number(gross.toFixed(2)),    // сколько списываем с клиента (руб)
+        netAmount: Number(net.toFixed(2)),   // сколько зачислится в Steam (руб)
+        description: `Steam top-up ${net.toFixed(2)} RUB to ${account}`,
 
-  const openLink = (url) => {
-    if (window.Telegram?.WebApp?.openLink) window.Telegram.WebApp.openLink(url);
-    else window.location.href = url;
-  };
+        // (необязательно) просим платёжку вернуть пользователя обратно в мини-апп
+        successUrl: THANKS_SUCCESS,
+        returnUrl:  THANKS_FAIL
+      };
 
-  try {
-    payBtn.disabled = true;
-    payBtn.textContent = 'Открываем страницу оплаты…';
+      try {
+        payBtn.disabled = true;
+        payBtn.textContent = 'Открываем страницу оплаты…';
 
-    const res = await fetch(`${API_BASE}/wata/dg/steam/orders`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+        const res = await fetch(`${API_BASE}/wata/dg/steam/orders`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data?.detail || JSON.stringify(data));
+
+        const url = data.paymentLink || data.url;
+        if (!url) throw new Error('paymentLink не вернулся от провайдера');
+
+        // ✅ открываем СТРОГО внутри Telegram (если возможно)
+        openLink(url);
+      } catch (err) {
+        console.error('steam pay error:', err);
+        showInfoOverlay('Не удалось создать оплату', `Попробуйте ещё раз.<br><small>${String(err.message || err)}</small>`);
+        payBtn.disabled = false;
+        updatePayUI(); // вернуть исходный текст кнопки
+      }
+    }
+
+    // подвесить обработчик на кнопку оплаты
+    payBtn?.addEventListener('click', (e) => {
+      e.preventDefault();
+      if (payBtn.disabled) return;
+      createSteamOrder();
     });
-
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data?.detail || JSON.stringify(data));
-
-    const url = data.paymentLink || data.url;
-    if (!url) throw new Error('paymentLink не вернулся от провайдера');
-
-    openLink(url);
-  } catch (err) {
-    console.error('steam pay error:', err);
-    showInfoOverlay('Не удалось создать оплату', `Попробуйте ещё раз.<br><small>${String(err.message || err)}</small>`);
-    payBtn.disabled = false;
-    updatePayUI(); // вернуть исходный текст кнопки
-  }
-}
-
-// подвесить обработчик на кнопку оплаты
-payBtn?.addEventListener('click', (e) => {
-  e.preventDefault();
-  if (payBtn.disabled) return;
-  createSteamOrder();
-});
 
     // Info overlays (по кликам внутри steam-info)
     const INFO = {
@@ -246,6 +265,7 @@ payBtn?.addEventListener('click', (e) => {
 
   });
 })();
+
 // ---------- Steam credited calculator ----------
 (function () {
   function ready(fn){
@@ -319,6 +339,7 @@ payBtn?.addEventListener('click', (e) => {
     refreshCredited();
   });
 })();
+
 // ===== Steam: расчёт "Будет зачислено в Steam" через starsbox-fragment-service =====
 (function(){
   // --- Базовый адрес сервиса берём из <body data-service-base="...">
@@ -401,7 +422,7 @@ payBtn?.addEventListener('click', (e) => {
       return;
     }
 
-    // Если сервис не задан — вывести "—" и выйти
+    // Если сервис не задан — вывести "0" и выйти
     if (!SERVICE_BASE){
       creditValue.textContent = '0';
       console.warn('[steam] SERVICE_BASE пуст, задайте <body data-service-base="...">');
@@ -439,7 +460,7 @@ payBtn?.addEventListener('click', (e) => {
   // Слушатели: ввод суммы
   amountInput.addEventListener('input', recalcDebounced);
 
-  // Слушатели: смена региона (переключаем класс is-active и aria-pressed, затем пересчёт)
+  // Слушатели: смена региона
   regionGroup.addEventListener('click', (e) => {
     const btn = e.target.closest('.region-btn');
     if (!btn) return;
@@ -450,18 +471,14 @@ payBtn?.addEventListener('click', (e) => {
       if (b.hasAttribute('aria-pressed')) b.setAttribute('aria-pressed', active ? 'true' : 'false');
     });
 
-    // при переключении региона можно также менять плейсхолдер под валюту:
-    const to = getTargetCurrency();
-    if (to === 'RUB')      amountInput.placeholder = 'от 100 до 45 000 руб';
-    else if (to === 'KZT') amountInput.placeholder = 'от 100 до 45 000 руб';
-    else if (to === 'USD') amountInput.placeholder = 'от 100 до 45 000 руб';
-
+    // можно менять плейсхолдер под валюту (текст одинаковый в твоей версии)
     recalcDebounced();
   });
 
   // Первый пересчёт при загрузке
   recalc();
 })();
+
 // Простой кеш, чтобы не дёргать API при одинаковых запросах
 const _convCache = new Map(); // ключ: `${amount}|${from}|${to}`
 
@@ -518,6 +535,7 @@ function getActiveRegion(){
   const active = group?.querySelector('.region-btn.is-active');
   return active?.dataset?.region || 'ru';
 }
+
 // Форматирование числа без валютного знака (оставим знак отдельно в #creditIcon)
 const nf = new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 2 });
 
@@ -534,11 +552,9 @@ async function updateCreditBox(){
   const region  = getActiveRegion();
   const toCur   = regionToCurrency(region);
 
-  // Чистим ввод — только цифры, минимум 100 (как в placeholder)
   const raw = (amountInput.value || '').replace(/\D+/g,'');
   const rub = Number(raw);
   if (!raw){
-    // Ничего не ввели — ставим дефисы/нулевые значения
     const meta = CURRENCY_META[toCur] || CURRENCY_META.RUB;
     iconEl.textContent  = meta.symbol;
     valueEl.textContent = '0';
@@ -546,7 +562,6 @@ async function updateCreditBox(){
     return;
   }
 
-  // Граница минимума — можешь изменить под свои правила
   if (rub < 100){
     const meta = CURRENCY_META[toCur] || CURRENCY_META.RUB;
     iconEl.textContent  = meta.symbol;
@@ -555,7 +570,6 @@ async function updateCreditBox(){
     return;
   }
 
-  // Если валюта назначения совпадает с RUB — показываем как есть (без запроса)
   if (toCur === fromCur){
     const meta = CURRENCY_META[toCur] || CURRENCY_META.RUB;
     iconEl.textContent  = meta.symbol;
@@ -564,12 +578,10 @@ async function updateCreditBox(){
     return;
   }
 
-  // Иначе — конвертация через наш API
   const result = await convertAmount(rub, fromCur, toCur);
   const meta = CURRENCY_META[toCur] || { symbol: '', name: toCur };
 
   if (result == null){
-    // Ошибка конвертации
     iconEl.textContent  = meta.symbol;
     valueEl.textContent = '0';
     unitEl.textContent  = meta.name;
@@ -601,17 +613,14 @@ async function updateCreditBox(){
     const btn = e.target.closest('.region-btn');
     if (!btn) return;
 
-    // меняем активную кнопку
     regionGroup.querySelectorAll('.region-btn').forEach(b=>{
       b.classList.toggle('is-active', b === btn);
       b.setAttribute('aria-pressed', b === btn ? 'true' : 'false');
     });
 
-    // пересчёт
     updateCreditBox();
   });
 
   // Первичная инициализация
   updateCreditBox();
 })();
-

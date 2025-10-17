@@ -117,8 +117,7 @@
       const m = (messageInput?.value || '').trim();
 
       if (s && m){
-        // пайп остаётся видимым, а сообщение уходит на новую строку
-        setGiftDescription(`Отправитель: ${s} | \n${m}`);
+        setGiftDescription(`Отправитель: ${s} | ${m}`);
       } else if (s){
         setGiftDescription(`Отправитель: ${s}`);
       } else if (m){
@@ -171,6 +170,7 @@
     renderCardText();
   });
 })();
+
 // ===== ИТОГО К ОПЛАТЕ + активация кнопок =====
 (function () {
   const totalEl   = document.getElementById('totalValue');
@@ -285,6 +285,7 @@ function toast(msg){
     input.blur();
   });
 })();
+
 /* ========= Подарки: фронт ↔ бэк ========= */
 (function () {
   const API_BASE = "https://api.starsbox.org";
@@ -346,8 +347,12 @@ function toast(msg){
     });
   }
 
+  // ✅ открыть ссылку строго внутри Telegram мини-аппа
   function openLink(url) {
     if (!url) return;
+    if (typeof window.openInsideTelegram === 'function') {
+      try { window.openInsideTelegram(url); return; } catch {}
+    }
     if (tg && typeof tg.openLink === "function") {
       try { tg.openLink(url); return; } catch {}
     }
@@ -416,72 +421,81 @@ function toast(msg){
 
   /* ---------- действие: создать платёж ---------- */
   async function initiatePayment(provider) {
-  try {
-    setLoading(true);
-
-    const username = normalizeUsername(usernameInput?.value || "");
-    if (!username) {
-      alert("Укажите username получателя (например, @username).");
-      return;
-    }
-
-    const { gift_id } = getGiftMeta();
-    if (!gift_id) {
-      alert("Не указан gift_id у подарка. Добавьте data-gift-id на #giftCard.");
-      return;
-    }
-
-    const amountMinor = Number(totalValueEl?.dataset?.amountMinor || "0");
-    if (!Number.isInteger(amountMinor) || amountMinor <= 0) {
-      alert("Сумма к оплате не рассчитана.");
-      return;
-    }
-
-    // пробуем взять user.id из мини-аппа; отправляем как строку
-    let tg_user_id;
     try {
-      const id = tg?.initDataUnsafe?.user?.id;
-      if (id) tg_user_id = String(id);
-    } catch {}
+      setLoading(true);
 
-    const payload = {
-      provider,
-      product: "gift",
-      // КЛЮЧЕВЫЕ ИЗМЕНЕНИЯ ↓↓↓
-      tg_username: username,   // было: username
-      tg_user_id,              // опционально, если доступен
-      // ↑↑↑
-      qty: 1,
-      amount_minor: amountMinor,
-      currency: "RUB",
-      gift_id,                 // строкой, без Number()
-      gift_text: buildGiftText()
-    };
+      const username = normalizeUsername(usernameInput?.value || "");
+      if (!username) {
+        alert("Укажите username получателя (например, @username).");
+        return;
+      }
 
-    const resp = await fetch(`${API_BASE}/pay/initiate`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "omit",
-      body: JSON.stringify(payload)
-    });
+      const { gift_id } = getGiftMeta();
+      if (!gift_id) {
+        alert("Не указан gift_id у подарка. Добавьте data-gift-id на #giftCard.");
+        return;
+      }
 
-    if (!resp.ok) {
-      const txt = await resp.text().catch(() => "");
-      throw new Error(`HTTP ${resp.status} ${resp.statusText} ${txt || ""}`.trim());
+      const amountMinor = Number(totalValueEl?.dataset?.amountMinor || "0");
+      if (!Number.isInteger(amountMinor) || amountMinor <= 0) {
+        alert("Сумма к оплате не рассчитана.");
+        return;
+      }
+
+      // пробуем взять user.id из мини-аппа; отправляем как строку
+      let tg_user_id;
+      try {
+        const id = tg?.initDataUnsafe?.user?.id;
+        if (id) tg_user_id = String(id);
+      } catch {}
+
+      // ✅ адреса возврата в мини-апп после оплаты
+      const ORIGIN         = location.origin || 'https://starsbox.org';
+      const THANKS_SUCCESS = ORIGIN + '/pay/thanks/success';
+      const THANKS_FAIL    = ORIGIN + '/pay/thanks/fail';
+
+      const payload = {
+        provider,
+        product: "gift",
+        tg_username: username,   // было: username
+        tg_user_id,              // опционально, если доступен
+        qty: 1,
+        amount_minor: amountMinor,
+        currency: "RUB",
+        gift_id,                 // строкой, без Number()
+        gift_text: buildGiftText(),
+
+        // ✅ return-URL, чтобы после оплаты вернуться в мини-апп
+        successUrl: THANKS_SUCCESS,
+        returnUrl:  THANKS_FAIL,
+        success_url: THANKS_SUCCESS, // дубль в snake_case — на всякий случай
+        fail_url:    THANKS_FAIL
+      };
+
+      const resp = await fetch(`${API_BASE}/pay/initiate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "omit",
+        body: JSON.stringify(payload)
+      });
+
+      if (!resp.ok) {
+        const txt = await resp.text().catch(() => "");
+        throw new Error(`HTTP ${resp.status} ${resp.statusText} ${txt || ""}`.trim());
+      }
+
+      const data = await resp.json();
+      if (!data || !data.ok || !data.payment_url) {
+        throw new Error(`Некорректный ответ сервера: ${JSON.stringify(data)}`);
+      }
+      openLink(data.payment_url);
+    } catch (e) {
+      console.error("[pay/initiate gift] error:", e);
+      alert(`Не удалось создать платёж.\n${e && e.message ? e.message : e}`);
+    } finally {
+      setLoading(false);
     }
-
-    const data = await resp.json();
-    if (!data || !data.ok || !data.payment_url) {
-      throw new Error(`Некорректный ответ сервера: ${JSON.stringify(data)}`);
-    }
-    openLink(data.payment_url);
-  } catch (e) {
-    console.error("[pay/initiate gift] error:", e);
-    alert(`Не удалось создать платёж.\n${e && e.message ? e.message : e}`);
-  } finally {
-    setLoading(false);
   }
-}
 
   /* ---------- init UI ---------- */
   function initBuyForMe() {

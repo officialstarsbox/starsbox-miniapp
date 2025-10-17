@@ -138,66 +138,66 @@
       activePackEl = null;
     });
 
-// ===== Итоговая стоимость + валидация и включение оплаты по username =====
-const STARS_MIN = 50;
-const STARS_MAX = 20000;
+    // ===== Итоговая стоимость + валидация и включение оплаты по username =====
+    const STARS_MIN = 50;
+    const STARS_MAX = 20000;
 
-const nfRub2 = new Intl.NumberFormat('ru-RU', {
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2
-});
+    const nfRub2 = new Intl.NumberFormat('ru-RU', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    });
 
-const totalCard  = document.getElementById('totalCard');
-const totalValue = document.getElementById('totalValue');
-const starsEl    = document.getElementById('starsAmount');
-const payButtons = Array.from(document.querySelectorAll('#paySbpBtn, #payCryptoBtn'));
+    const totalCard  = document.getElementById('totalCard');
+    const totalValue = document.getElementById('totalValue');
+    const starsEl    = document.getElementById('starsAmount');
+    const payButtons = Array.from(document.querySelectorAll('#paySbpBtn, #payCryptoBtn'));
 
-function setPayEnabled(on){
-  payButtons.forEach(btn => {
-    if (!btn) return;
-    btn.disabled = !on;
-    btn.classList.toggle('is-disabled', !on);
-    btn.setAttribute('aria-disabled', String(!on));
-  });
-}
+    function setPayEnabled(on){
+      payButtons.forEach(btn => {
+        if (!btn) return;
+        btn.disabled = !on;
+        btn.classList.toggle('is-disabled', !on);
+        btn.setAttribute('aria-disabled', String(!on));
+      });
+    }
 
-function getStarRate(){
-  const fromWin  = Number(window.STAR_RATE);
-  if (!isNaN(fromWin) && fromWin > 0) return fromWin;
-  const fromAttr = Number(totalCard?.dataset?.rate);
-  if (!isNaN(fromAttr) && fromAttr > 0) return fromAttr;
-  return 1.7;
-}
+    function getStarRate(){
+      const fromWin  = Number(window.STAR_RATE);
+      if (!isNaN(fromWin) && fromWin > 0) return fromWin;
+      const fromAttr = Number(totalCard?.dataset?.rate);
+      if (!isNaN(fromAttr) && fromAttr > 0) return fromAttr;
+      return 1.7;
+    }
 
-function hasValidRecipient(){
-  const v = (document.getElementById('tgUsername')?.value || '').trim();
-  return /^@[A-Za-z0-9_]{1,32}$/.test(v);
-}
+    function hasValidRecipient(){
+      const v = (document.getElementById('tgUsername')?.value || '').trim();
+      return /^@[A-Za-z0-9_]{1,32}$/.test(v);
+    }
 
-function updateTotal(){
-  const qty = Number((starsEl?.value || '').replace(/\D+/g, ''));
-  const inRange = qty >= STARS_MIN && qty <= STARS_MAX;
+    function updateTotal(){
+      const qty = Number((starsEl?.value || '').replace(/\D+/g, ''));
+      const inRange = qty >= STARS_MIN && qty <= STARS_MAX;
 
-  if (!inRange){
-    if (totalValue) totalValue.textContent = '0';
+      if (!inRange){
+        if (totalValue) totalValue.textContent = '0';
+        setPayEnabled(false);
+        return;
+      }
+
+      const sum = qty * getStarRate();
+      if (totalValue) totalValue.textContent = `${nfRub2.format(sum)} руб.`;
+
+      const canPay = sum > 0 && hasValidRecipient();
+      setPayEnabled(canPay);
+    }
+
+    // пересчёт при изменении количества И при изменении получателя
+    starsEl?.addEventListener('input', updateTotal);
+    document.getElementById('tgUsername')?.addEventListener('input', updateTotal);
+
+    // первичная инициализация
     setPayEnabled(false);
-    return;
-  }
-
-  const sum = qty * getStarRate();
-  if (totalValue) totalValue.textContent = `${nfRub2.format(sum)} руб.`;
-
-  const canPay = sum > 0 && hasValidRecipient();
-  setPayEnabled(canPay);
-}
-
-// пересчёт при изменении количества И при изменении получателя
-starsEl?.addEventListener('input', updateTotal);
-document.getElementById('tgUsername')?.addEventListener('input', updateTotal);
-
-// первичная инициализация
-setPayEnabled(false);
-updateTotal();
+    updateTotal();
 
     // ===== «Купить себе» — username берём в момент клика =====
     const buySelfBtn = $('#buyForMeBtn') || $('#buySelfBtn');
@@ -259,6 +259,11 @@ updateTotal();
     return Number.isFinite(v) ? v : 1;
   })();
 
+  // ✅ адреса возврата в мини-апп после оплаты (страницы “спасибо”/“ошибка”)
+  const ORIGIN         = location.origin || 'https://starsbox.org';
+  const THANKS_SUCCESS = ORIGIN + '/pay/thanks/success';
+  const THANKS_FAIL    = ORIGIN + '/pay/thanks/fail';
+
   // Утилиты
   const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
 
@@ -313,9 +318,12 @@ updateTotal();
     });
   }
 
+  // ✅ открыть ссылку строго внутри Telegram (если возможно)
   function openLink(url) {
     if (!url) return;
-    // В мини-аппе лучше так, в браузере — обычный переход
+    if (typeof window.openInsideTelegram === 'function') {
+      try { window.openInsideTelegram(url); return; } catch {}
+    }
     if (tg && typeof tg.openLink === "function") {
       try { tg.openLink(url); return; } catch {}
     }
@@ -345,12 +353,18 @@ updateTotal();
       }
 
       const payload = {
-        provider,                // "wata" | "heleket"
-        product: PRODUCT,        // "stars"
-        username,                // "@username"
-        qty,                     // число звёзд
+        provider,                  // "wata" | "heleket"
+        product: PRODUCT,          // "stars"
+        username,                  // "@username"
+        qty,                       // число звёзд
         amount_minor: amountMinor, // копейки
-        currency: CURRENCY       // "RUB"
+        currency: CURRENCY,        // "RUB"
+
+        // ✅ адреса возврата (бэку и/или провайдеру)
+        successUrl: THANKS_SUCCESS,
+        returnUrl:  THANKS_FAIL,
+        success_url: THANKS_SUCCESS, // дублируем в snake_case на всякий случай
+        fail_url:    THANKS_FAIL
       };
 
       const resp = await fetch(`${API_BASE}/pay/initiate`, {
@@ -371,7 +385,7 @@ updateTotal();
         throw new Error(`Некорректный ответ сервера: ${JSON.stringify(data)}`);
       }
 
-      // открываем платёжную ссылку
+      // открываем платёжную ссылку внутри мини-аппа
       openLink(data.payment_url);
     } catch (e) {
       console.error("[pay/initiate] error:", e);
@@ -494,3 +508,4 @@ updateTotal();
     init();
   }
 })();
+

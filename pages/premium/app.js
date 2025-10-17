@@ -84,6 +84,7 @@
     document.addEventListener('touchstart',  blurIfOutside, { capture: true });
   });
 })();
+
 (function(){
   function ready(fn){
     if (document.readyState !== 'loading') fn();
@@ -152,6 +153,7 @@
     }
   });
 })();
+
 // ===== Итог к оплате (по выбранному пакету) =====
 (function(){
   const totalEl = document.getElementById('totalValue');
@@ -186,6 +188,7 @@
   // первичный вывод
   renderTotal();
 })();
+
 // ===== Включение/выключение платёжных кнопок по условиям =====
 (function(){
   const usernameInput = document.getElementById('tgUsername');
@@ -229,6 +232,7 @@
   // первичная проверка
   reevaluate();
 })();
+
 /* ===== Telegram Premium: фронт ↔ бэк ===== */
 (function () {
   const API_BASE = "https://api.starsbox.org";
@@ -293,8 +297,12 @@
     });
   }
 
+  // ✅ открыть ссылку строго внутри Telegram (если возможно)
   function openLink(url) {
     if (!url) return;
+    if (typeof window.openInsideTelegram === 'function') {
+      try { window.openInsideTelegram(url); return; } catch {}
+    }
     if (tg && typeof tg.openLink === "function") {
       try { tg.openLink(url); return; } catch {}
     }
@@ -389,6 +397,11 @@
         return;
       }
 
+      // ✅ адреса возврата в мини-апп после оплаты
+      const ORIGIN         = location.origin || 'https://starsbox.org';
+      const THANKS_SUCCESS = ORIGIN + '/pay/thanks/success';
+      const THANKS_FAIL    = ORIGIN + '/pay/thanks/fail';
+
       // Отправляем все понятные поля — если бэк вернёт 422, повторим «минимальным» набором
       const payloadFull = {
         provider,                 // "wata" | "heleket"
@@ -398,7 +411,13 @@
         duration_months: months,  // на всякий случай дублируем
         qty: months,              // если бэк ожидает qty
         amount_minor: amountMinor,
-        currency: CURRENCY
+        currency: CURRENCY,
+
+        // ✅ return-URL для открытия внутри мини-аппа
+        successUrl: THANKS_SUCCESS,
+        returnUrl:  THANKS_FAIL,
+        success_url: THANKS_SUCCESS, // дублируем в snake_case на всякий случай
+        fail_url:    THANKS_FAIL
       };
 
       let resp = await fetch(`${API_BASE}/pay/initiate`, {
@@ -415,7 +434,12 @@
           username,
           qty: months,
           amount_minor: amountMinor,
-          currency: CURRENCY
+          currency: CURRENCY,
+
+          successUrl: THANKS_SUCCESS,
+          returnUrl:  THANKS_FAIL,
+          success_url: THANKS_SUCCESS,
+          fail_url:    THANKS_FAIL
         };
         resp = await fetch(`${API_BASE}/pay/initiate`, {
           method: "POST",
@@ -513,3 +537,4 @@
     init();
   }
 })();
+

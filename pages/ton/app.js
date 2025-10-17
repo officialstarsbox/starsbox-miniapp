@@ -86,6 +86,7 @@
     document.addEventListener('touchstart',  blurIfOutside, { capture: true });
   });
 })();
+
 // ===== Кол-во TON (1..300, только целые) =====
 (function(){
   const tonAmount = document.getElementById('tonAmount');
@@ -128,6 +129,7 @@
     if (e.key === 'Enter'){ e.preventDefault(); tonAmount.blur(); }
   });
 })();
+
 // ===== TON: Итого к оплате (1 TON = 300 ₽ по умолчанию) =====
 (function(){
   const amountEl = document.getElementById('tonAmount');   // поле количества TON (1..300)
@@ -162,6 +164,7 @@
   amountEl.addEventListener('input', renderTotal);
   renderTotal(); // первичный вывод (0,00 руб.)
 })();
+
 // ===== TON: активация платёжных кнопок по вводу username и количества TON =====
 (function(){
   const usernameEl = document.getElementById('tgUsername');   // поле @username
@@ -215,6 +218,7 @@
   setButtonsEnabled(false);
   renderTotalAndButtons();
 })();
+
 /* ========= TON: фронт ↔ бэк ========= */
 (function () {
   const API_BASE = "https://api.starsbox.org";
@@ -222,6 +226,11 @@
   const CURRENCY = "RUB";
   const MIN_TON = 1;
   const MAX_TON = 300;
+
+  // ✅ Настраиваем, куда вернуть пользователя после оплаты (страницы создадим позже)
+  const ORIGIN = location.origin || "https://starsbox.org";
+  const THANKS_SUCCESS = ORIGIN + "/pay/thanks/success";
+  const THANKS_FAIL    = ORIGIN + "/pay/thanks/fail";
 
   const $ = (sel) => document.querySelector(sel);
 
@@ -294,6 +303,7 @@
     [paySbpBtn, payCryptoBtn].forEach((b) => {
       if (!b) return;
       b.disabled = !enable;
+      b.classList.toggle("is-loading", false);
       b.setAttribute("aria-disabled", String(!enable));
     });
   }
@@ -307,11 +317,18 @@
     });
   }
 
+  // ✅ Открываем ссылки приоритетно внутри Telegram мини-аппа
   function openLink(url) {
     if (!url) return;
+    // 1) если на странице подключён /app.js с openInsideTelegram — используем его
+    if (typeof window.openInsideTelegram === "function") {
+      try { window.openInsideTelegram(url); return; } catch {}
+    }
+    // 2) иначе — напрямую через SDK
     if (tg && typeof tg.openLink === "function") {
       try { tg.openLink(url); return; } catch {}
     }
+    // 3) фолбэк — обычный переход
     window.location.href = url;
   }
 
@@ -344,11 +361,16 @@
         product: PRODUCT,         // "ton"
         tg_username: username,    // ОБЯЗАТЕЛЬНО для TON
         ton_amount: qty,          // ОБЯЗАТЕЛЬНО для TON (целое количество TON)
-        // ниже — оставим для совместимости/логов, не мешает
-        username,                 // дублируем
-        qty,                      // дублируем
-        amount_minor: amountMinor, // сумма в копейках (для платёжки)
-        currency: CURRENCY        // "RUB"
+
+        // ниже — оставим для совместимости/логов
+        username,                 // дубль
+        qty,                      // дубль
+        amount_minor: amountMinor,
+        currency: CURRENCY,
+
+        // ✅ (опционально) просим платёжку вернуть пользователя внутрь мини-аппа:
+        success_url: THANKS_SUCCESS,
+        fail_url:    THANKS_FAIL
       };
 
       const resp = await fetch(`${API_BASE}/pay/initiate`, {
@@ -427,7 +449,7 @@
 
   // Кнопки оплаты
   function initPayButtons() {
-    if (paySbpBtn) paySbpBtn.addEventListener("click", () => initiatePayment("wata"));
+    if (paySbpBtn)    paySbpBtn.addEventListener("click", () => initiatePayment("wata"));
     if (payCryptoBtn) payCryptoBtn.addEventListener("click", () => initiatePayment("heleket"));
   }
 

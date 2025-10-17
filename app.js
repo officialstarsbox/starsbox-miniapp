@@ -90,3 +90,61 @@
     });
   });
 })();
+// ==== /app.js — Хук возврата из платежки по start_param =====
+(function(){
+  const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
+  const API = 'https://api.starsbox.org';
+
+  function parseStartParam(){
+    try { tg?.ready?.(); } catch {}
+    const url = new URL(window.location.href);
+    // при открытии через t.me используется ?startapp=..., через обычный start — ?start=...
+    return (tg?.initDataUnsafe?.start_param) || url.searchParams.get('startapp') || url.searchParams.get('start') || '';
+  }
+
+  function extractOrderId(sp){
+    // принимаем: resume:<id>, success:<id>, paid:<id>, fail:<id>
+    const m = String(sp||'').trim().match(/^(?:resume|success|paid|fail)[:_\-]+(.+)$/i);
+    return m ? m[1] : null;
+  }
+
+  async function fetchStatus(orderId){
+    const endpoints = [
+      `${API}/pay/status/${encodeURIComponent(orderId)}`,
+      `${API}/wata/dg/status/${encodeURIComponent(orderId)}` // запасной путь
+    ];
+    for (const u of endpoints){
+      try{
+        const r = await fetch(u, { headers: { 'Accept':'application/json' } });
+        if (!r.ok) continue;
+        const d = await r.json().catch(()=>null);
+        if (d) return d;
+      }catch{}
+    }
+    return null;
+  }
+
+  function showBanner(orderId, text){
+    const box = document.getElementById('returnBanner');
+    if (!box){ tg?.showToast?.(`Заказ ${orderId}: ${text}`); return; }
+    box.querySelector('[data-order]').textContent  = orderId;
+    box.querySelector('[data-status]').textContent = text;
+    box.hidden = false;
+  }
+
+  document.addEventListener('DOMContentLoaded', async () => {
+    const sp = parseStartParam();
+    const orderId = extractOrderId(sp);
+    if (!orderId) return;
+
+    let text = 'в обработке';
+    try{
+      const s = await fetchStatus(orderId);
+      if (s){
+        const paid = !!(s.paid || (s.ok && (s.status==='paid' || s.status==='success')) || s.provider_status==='Success');
+        text = paid ? 'оплачен' : (s.status || 'в обработке');
+      }
+    }catch{}
+    showBanner(orderId, text);
+  });
+})();

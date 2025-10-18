@@ -43,17 +43,17 @@
 
     /* big cross in a circle */
     .icon{
-      width:72px; height:72px; margin:0 auto 14px;
+      width:70px; height:70px; margin:0 auto 14px;
       border-radius:50%;
       background:rgba(255,255,255,.08);
       display:grid; place-items:center;
     }
-    .icon svg{ width:34px; height:34px; display:block; }
+    .icon svg{ width:50px; height:50px; display:block; }
     .icon path{ stroke:#ffffff; stroke-width:2.5; stroke-linecap:round }
 
     h1{
       margin:8px 0 10px;
-      font-size:22px; font-weight:700;
+      font-size:20px; font-weight:400;
       letter-spacing:.2px;
     }
 
@@ -83,7 +83,7 @@
     .btn{
       appearance:none; border:0; cursor:pointer;
       border-radius:14px; padding:14px 16px;
-      font-size:16px; font-weight:700; text-decoration:none;
+      font-size:14px; font-weight:400; text-decoration:none;
       display:block; width:100%;
     }
     .btn-primary{ background:var(--btn); color:var(--btn-text) }
@@ -102,11 +102,11 @@
         </svg>
       </div>
 
-      <h1 id="title">При оплате заказа произошла ошибка.</h1>
+      <h1 id="title">При оплате заказа произошла ошибка</h1>
 
       <ul class="kv" aria-live="polite">
         <li><span>Номер заказа</span><b id="orderId">—</b></li>
-        <li><span>Статус</span><b class="status-bad">Неуспешно</b></li>
+        <li><span>Статус</span><b class="status-bad">Не успех</b></li>
       </ul>
 
       <div class="actions">
@@ -130,7 +130,7 @@
       qp.get('orderId') || qp.get('order_id') ||
       hp.get('orderId') || hp.get('order_id') || '';
 
-    document.getElementById('orderId').textContent = orderId || '—';
+    document.getElementById('orderId').textContent = orderId || 'ord_wata_1760736863_59ecd3';
 
     // deep-link для возврата в мини-апп (передаём start_param, чтобы приложение могло догрузить статус)
     const startParam = orderId ? `resume:${encodeURIComponent(orderId)}` : 'resume';

@@ -260,9 +260,8 @@
   })();
 
   // ✅ адреса возврата в мини-апп после оплаты (страницы “спасибо”/“ошибка”)
-  const ORIGIN         = location.origin || 'https://starsbox.org';
-  const THANKS_SUCCESS = ORIGIN + '/pay/thanks/success';
-  const THANKS_FAIL    = ORIGIN + '/pay/thanks/fail';
+  const THANKS_SUCCESS = window.PAY_SUCCESS_URL;
+  const THANKS_FAIL    = window.PAY_FAIL_URL;
 
   // Утилиты
   const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));

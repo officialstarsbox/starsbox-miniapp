@@ -142,9 +142,8 @@ const API_BASE = 'https://api.starsbox.org';
     updatePayUI();
 
     // ✅ адреса возврата в мини-апп после оплаты (страницы сделаем позже)
-    const ORIGIN          = location.origin || 'https://starsbox.org';
-    const THANKS_SUCCESS  = ORIGIN + '/pay/thanks/success';
-    const THANKS_FAIL     = ORIGIN + '/pay/thanks/fail';
+    const THANKS_SUCCESS = window.PAY_SUCCESS_URL;
+    const THANKS_FAIL    = window.PAY_FAIL_URL;
 
     // --- Steam: создать заказ и открыть оплату через Wata DG ---
     async function createSteamOrder() {

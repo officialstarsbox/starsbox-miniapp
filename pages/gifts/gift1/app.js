@@ -449,10 +449,8 @@ function toast(msg){
         if (id) tg_user_id = String(id);
       } catch {}
 
-      // ✅ адреса возврата в мини-апп после оплаты
-      const ORIGIN         = location.origin || 'https://starsbox.org';
-      const THANKS_SUCCESS = ORIGIN + '/pay/thanks/success';
-      const THANKS_FAIL    = ORIGIN + '/pay/thanks/fail';
+      const THANKS_SUCCESS = window.PAY_SUCCESS_URL;
+      const THANKS_FAIL    = window.PAY_FAIL_URL;
 
       const payload = {
         provider,

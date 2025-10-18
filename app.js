@@ -4,6 +4,17 @@
     else document.addEventListener('DOMContentLoaded', fn, { once: true });
   }
 
+  // ===== App base (работает и локально, и на GH Pages) =====
+  window.APP_BASE = (function () {
+    // https://officialstarsbox.github.io/starsbox-miniapp-deploy/...
+    // parts -> ["starsbox-miniapp-deploy", ...]
+    const parts = location.pathname.split('/').filter(Boolean);
+    const repo  = parts.length ? '/' + parts[0] : '';
+    return location.origin + repo;                  // -> https://officialstarsbox.github.io/starsbox-miniapp-deploy
+  })();
+  window.PAY_SUCCESS_URL = window.APP_BASE + '/pages/pay/success/';
+  window.PAY_FAIL_URL    = window.APP_BASE + '/pages/pay/fail/';
+
   // --- Telegram WebApp helpers ---
   const tg = window.Telegram && window.Telegram.WebApp;
   if (tg) {

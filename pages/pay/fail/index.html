@@ -73,10 +73,10 @@
       gap:12px; padding:10px 12px;
       background:rgba(255,255,255,.06);
       border-radius:12px;
-      font-size:15px;
+      font-size:14px;
     }
     .kv li span{ color:var(--muted) }
-    .kv li b{ color:#fff; font-weight:700 }
+    .kv li b{ color:#fff; font-weight:400 }
     .status-bad{ color:var(--danger) }
 
     .actions{ display:grid; gap:12px; margin-top:18px }
@@ -102,11 +102,11 @@
         </svg>
       </div>
 
-      <h1 id="title">При оплате заказа произошла ошибка</h1>
+      <h1 id="title">При оплате заказа<br>произошла ошибка</h1>
 
       <ul class="kv" aria-live="polite">
-        <li><span>Номер заказа</span><b id="orderId">—</b></li>
-        <li><span>Статус</span><b class="status-bad">Не успех</b></li>
+        <li><span>Заказ:</span><b id="orderId">—</b></li>
+        <li><span>Статус:</span><b class="status-bad">Не успех</b></li>
       </ul>
 
       <div class="actions">

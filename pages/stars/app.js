@@ -358,6 +358,7 @@
         qty,                       // число звёзд
         amount_minor: amountMinor, // копейки
         currency: CURRENCY,        // "RUB"
+        ref_code: (window.getRefCode && window.getRefCode()) || null,
 
         // ✅ адреса возврата (бэку и/или провайдеру)
         successUrl: THANKS_SUCCESS,

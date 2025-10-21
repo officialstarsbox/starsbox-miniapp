@@ -7,6 +7,11 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body class="home-page">
+  <!-- splash -->
+  <div id="splash" style="position:fixed;inset:0;background:#0e1220;display:grid;place-items:center;z-index:99999;">
+    <img src="/assets/icons/logo20.png" alt="StarsBox" width="160" height="160" />
+  </div>
+
   <!-- ===== Топбар ===== -->
   <header class="topbar">
     <div class="topbar__inner">
@@ -15,134 +20,153 @@
         <div id="userFullName" class="userbox__name">—</div>
         <div id="userUsername" class="userbox__username">—</div>
       </div>
-      <!-- справа твоя иконка (поменяй src на свою) -->
       <img id="brandIcon" class="brand-icon" src="assets/icons/settings2.png" alt="StarsBox">
     </div>
   </header>
 
-  <!-- ===== Контентная колонка (дальше сюда добавим панели продуктов) ===== -->
+  <!-- ===== Контент ===== -->
   <main class="wrap" id="pageRoot">
-   <section class="news">
-  <h2 class="section-title">Новости и акции</h2>
+    <!-- Новости -->
+    <section class="news">
+      <h2 class="section-title">Новости и акции</h2>
 
-  <div class="news-rail" id="newsRail">
-    <!-- Карточка: внутренняя ссылка -->
-    <a class="news-card"
-       href="./pages/stars/index.html"
-       aria-label="Покупайте звезды">
-      <span class="news-card__bg" style="--img:url('./assets/backgrounds/stars3.png')"></span>
-      <span class="news-card__title">Покупайте звезды</span>
-    </a>
+      <div class="news-rail" id="newsRail">
+        <a class="news-card" href="./pages/stars/index.html" aria-label="Покупайте звезды">
+          <span class="news-card__bg" style="--img:url('./assets/backgrounds/stars3.png')"></span>
+          <span class="news-card__title">Покупайте звезды</span>
+        </a>
 
-    <!-- Карточка: внутренняя или внешняя — можно target="_blank" -->
-    <a class="news-card"
-       href="./pages/steam/index.html"
-       aria-label="Пополняйте Steam">
-      <span class="news-card__bg" style="--img:url('./assets/backgrounds/steam.jpg')"></span>
-      <span class="news-card__title">Пополняйте Steam</span>
-    </a>
+        <a class="news-card" href="./pages/steam/index.html" aria-label="Пополняйте Steam">
+          <span class="news-card__bg" style="--img:url('./assets/backgrounds/steam.jpg')"></span>
+          <span class="news-card__title">Пополняйте Steam</span>
+        </a>
 
-    <a class="news-card" href="./pages/ton/index.html" aria-label="Покупайте TON">
-      <span class="news-card__bg" style="--img:url('./assets/backgrounds/ton.png')"></span>
-      <span class="news-card__title">Покупайте Ton</span>
-    </a>
+        <a class="news-card" href="./pages/ton/index.html" aria-label="Покупайте TON">
+          <span class="news-card__bg" style="--img:url('./assets/backgrounds/ton.png')"></span>
+          <span class="news-card__title">Покупайте Ton</span>
+        </a>
 
-    <!-- Ещё карточки — добавляй просто ниже; старые уедут вправо -->
-    <a class="news-card" href="./pages/gifts/index.html" aria-label="Подарки для друзей">
-      <span class="news-card__bg" style="--img:url('./assets/backgrounds/gifts.png')"></span>
-      <span class="news-card__title">Подарки для друзей</span>
-    </a>
-  </div>
-
-  <div class="section-divider" aria-hidden="true"></div>
-</section>
-<section class="product-panels" aria-label="Выберите продукт">
-  <h2 class="sec-title">Выберите продукт</h2>
-
-  <div class="panels-grid">
-    <!-- Большая панель (шире, выше) -->
-    <a class="panel-card panel--lg"
-       href="pages/stars/index.html"
-       data-bg="assets/backgrounds/stars3.png">
-      <div class="panel-bg"></div>
-      <div class="panel-overlay"></div>
-
-      <div class="panel-text">
-        <h3 class="panel-title">Купить звезды</h3>
-        <p class="panel-sub">Быстрое пополнение</p>
+        <a class="news-card" href="./pages/gifts/index.html" aria-label="Подарки для друзей">
+          <span class="news-card__bg" style="--img:url('./assets/backgrounds/gifts.png')"></span>
+          <span class="news-card__title">Подарки для друзей</span>
+        </a>
       </div>
 
-      <div class="panel-pill">
-        <img src="assets/icons/icon3.png" alt="">
-      </div>
-    </a>
+      <div class="section-divider" aria-hidden="true"></div>
+    </section>
 
-    <!-- Маленькая -->
-    <a class="panel-card panel--sm"
-       href="pages/ton/index.html"
-       data-bg="assets/backgrounds/ton.png">
-      <div class="panel-bg"></div>
-      <div class="panel-overlay"></div>
-      <div class="panel-text">
-        <h3 class="panel-title">Купить TON</h3>
-        <p class="panel-sub">Валюта Telegram</p>
-      </div>
-      <div class="panel-pill">
-        <img src="assets/icons/icon17.png" alt="">
-      </div>
-    </a>
+    <!-- Панели продуктов -->
+    <section class="product-panels" aria-label="Выберите продукт">
+      <h2 class="sec-title">Выберите продукт</h2>
 
-    <!-- Средняя 1 -->
-    <a class="panel-card panel--md"
-       href="pages/gifts/index.html"
-       data-bg="assets/backgrounds/gifts.png">
-      <div class="panel-bg"></div>
-      <div class="panel-overlay"></div>
-      <div class="panel-text">
-        <h3 class="panel-title">Подарки</h3>
-        <p class="panel-sub">Себе и друзьям</p>
-      </div>
-      <div class="panel-pill">
-        <img src="assets/icons/icon15.png" alt="">
-      </div>
-    </a>
+      <div class="panels-grid">
+        <!-- Звезды -->
+        <a class="panel panel--lg panel--stars" href="pages/stars/index.html">
+          <div class="panel__inner">
+            <div>
+              <div class="panel__title">Купить звезды</div>
+              <div class="panel__sub">Быстрое пополнение</div>
+            </div>
+            <div class="panel__pill">
+              <img src="assets/icons/icon3.png" alt="">
+            </div>
+          </div>
+        </a>
 
-    <!-- Средняя 2 -->
-    <a class="panel-card panel--md"
-       href="pages/premium/index.html"
-       data-bg="assets/backgrounds/stars3.png">
-      <div class="panel-bg"></div>
-      <div class="panel-overlay"></div>
-      <div class="panel-text">
-        <h3 class="panel-title">Premium</h3>
-        <p class="panel-sub">Подписка в два клика</p>
-      </div>
-      <div class="panel-pill">
-        <img src="assets/icons/icon16.png" alt="">
-      </div>
-    </a>
+        <!-- TON -->
+        <a class="panel panel--sm panel--ton" href="pages/ton/index.html">
+          <div class="panel__inner">
+            <div>
+              <div class="panel__title">Купить TON</div>
+              <div class="panel__sub">Валюта Telegram</div>
+            </div>
+            <div class="panel__pill">
+              <img src="assets/icons/icon17.png" alt="">
+            </div>
+          </div>
+        </a>
 
-    <!-- Полноширинная -->
-    <a class="panel-card panel--full"
-       href="pages/steam/index.html"
-       data-bg="assets/backgrounds/steam2.jpg">
-      <div class="panel-bg"></div>
-      <div class="panel-overlay"></div>
-      <div class="panel-text">
-        <h3 class="panel-title">Пополняйте Steam</h3>
-        <p class="panel-sub">По самому выгодному курсу</p>
+        <!-- Подарки -->
+        <a class="panel panel--md panel--gifts" href="pages/gifts/index.html">
+          <div class="panel__inner">
+            <div>
+              <div class="panel__title">Подарки</div>
+              <div class="panel__sub">Себе и друзьям</div>
+            </div>
+            <div class="panel__pill">
+              <img src="assets/icons/icon15.png" alt="">
+            </div>
+          </div>
+        </a>
+
+        <!-- Premium -->
+        <a class="panel panel--md panel--premium" href="pages/premium/index.html">
+          <div class="panel__inner">
+            <div>
+              <div class="panel__title">Premium</div>
+              <div class="panel__sub">Подписка в два клика</div>
+            </div>
+            <div class="panel__pill">
+              <img src="assets/icons/icon16.png" alt="">
+            </div>
+          </div>
+        </a>
+
+        <!-- Steam (на всю ширину) -->
+        <a class="panel panel--full panel--steam" href="pages/steam/index.html">
+          <div class="panel__inner">
+            <div>
+              <div class="panel__title">Пополняйте Steam</div>
+              <div class="panel__sub">По самому выгодному курсу</div>
+            </div>
+            <div class="panel__pill">
+              <img src="assets/icons/icon4.png" alt="">
+            </div>
+          </div>
+        </a>
+
+        <!-- Referral (на всю ширину, как Steam) -->
+        <a class="panel panel--full panel--ref" href="pages/ref/index.html" aria-label="Реферальная программа">
+          <div class="panel__inner">
+            <div>
+              <div class="panel__title">Реферальная программа</div>
+              <div class="panel__sub">Зарабатывай с нами</div>
+            </div>
+            <div class="panel__pill">
+              <!-- можно заменить иконку на любую из ваших -->
+              <img src="assets/icons/акции.png" alt="">
+            </div>
+          </div>
+        </a>
       </div>
-      <div class="panel-pill">
-        <img src="assets/icons/icon4.png" alt="">
-      </div>
-    </a>
-  </div>
-</section>
+    </section>
   </main>
 
-  <!-- Telegram WebApp SDK (для получения данных пользователя) -->
+  <script>
+  (function registerSW(){
+    const scope = '/starsbox-miniapp-deploy/';
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register(scope + 'sw.js', {scope})
+        .then(() => navigator.serviceWorker.ready)
+        .then(reg => {
+          navigator.serviceWorker.addEventListener('message', (ev) => {
+            if (ev.data === 'sw-ready') {
+              const s = document.getElementById('splash'); if (s) s.remove();
+            }
+          });
+          setTimeout(() => { document.getElementById('splash')?.remove(); }, 5000);
+        })
+        .catch(() => { document.getElementById('splash')?.remove(); });
+    } else {
+      document.getElementById('splash')?.remove();
+    }
+  })();
+  </script>
+
+  <!-- Telegram WebApp SDK -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
+
 

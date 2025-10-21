@@ -172,6 +172,7 @@ const API_BASE = 'https://api.starsbox.org';
         amount: Number(gross.toFixed(2)),    // сколько списываем с клиента (руб)
         netAmount: Number(net.toFixed(2)),   // сколько зачислится в Steam (руб)
         description: `Steam top-up ${net.toFixed(2)} RUB to ${account}`,
+        ref_code: (window.getRefCode && window.getRefCode()) || null,
 
         // (необязательно) просим платёжку вернуть пользователя обратно в мини-апп
         successUrl: THANKS_SUCCESS,

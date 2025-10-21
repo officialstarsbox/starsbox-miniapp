@@ -21,6 +21,9 @@
   --panel-gap: 12px;  /* внутри карточек */
 }
 
+*, *::before, *::after { box-sizing: border-box; }
+html, body { overflow-x: hidden; }
+
 /* =========================================================
    БАЗА + ФОН
    ========================================================= */
@@ -47,32 +50,26 @@ body.ton-page::before{
 }
 
 /* =========================================================
-   Топбар (как на Stars: sticky, полупрозрачный)
+   Топбар
    ========================================================= */
 .topbar{
   position: sticky; top: 0;
-  display: grid;
-  grid-template-columns: 44px 1fr 44px; /* кнопка — заголовок — спейсер */
-  align-items: center;
-  gap: 8px;
-  padding-top: 14px;
-  padding-bottom: 14px;
+  display: grid; grid-template-columns: 44px 1fr 44px;
+  align-items: center; gap: 8px;
+  padding-top: 14px; padding-bottom: 14px;
+  box-sizing: border-box;
+  /* было:
   padding-left:  calc((100vw - var(--form-w)) / 2 + 0px);
   padding-right: calc((100vw - var(--form-w)) / 2 + 0px);
+  */
+  padding-left:  max(0px, calc((100% - var(--form-w)) / 2));
+  padding-right: max(0px, calc((100% - var(--form-w)) / 2));
   background: rgba(9,13,24,.7);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--card-brd);
   z-index: 10;
 }
-.title{
-  margin: 0;
-  text-align: center;
-  font-size: 18px;
-  font-weight: 400;
-}
-.topbar-spacer{ width: 44px; height: 40px; } /* симметрия сетки справа */
-
-/* Кнопка-назад — это ССЫЛКА */
+.title{ margin: 0; text-align: center; font-size: 18px; font-weight: 400; }
 .back-btn{
   justify-self: start;
   width: 40px; height: 40px;
@@ -82,11 +79,9 @@ body.ton-page::before{
   display: inline-grid; place-items: center;
   cursor: pointer;
   transition: background .2s ease, border-color .2s ease, transform .06s;
-  text-decoration: none;
 }
 .back-btn::before{
-  content: "";
-  width: 10px; height: 10px;
+  content: ""; width: 10px; height: 10px;
   border-left: 2px solid var(--text);
   border-bottom: 2px solid var(--text);
   transform: translateX(1px) rotate(45deg);
@@ -96,10 +91,12 @@ body.ton-page::before{
 .back-btn:focus-visible{ outline: 2px solid var(--focus); outline-offset: 2px; }
 
 /* =========================================================
-   Контентная колонка (будем наполнять далее)
+   Контентная колонка и базовые отступы
    ========================================================= */
 .wrap{
-  width: var(--form-w);
+  /* было: width: var(--form-w); */
+  max-width: var(--form-w);
+  width: 100%;
   margin: 20px auto 40px;
   padding: 0 6px 20px;
 }

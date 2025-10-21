@@ -411,6 +411,7 @@
         qty: months,              // если бэк ожидает qty
         amount_minor: amountMinor,
         currency: CURRENCY,
+        ref_code: (window.getRefCode && window.getRefCode()) || null,
 
         // ✅ return-URL для открытия внутри мини-аппа
         successUrl: THANKS_SUCCESS,

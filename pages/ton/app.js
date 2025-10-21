@@ -366,6 +366,7 @@
         qty,                      // дубль
         amount_minor: amountMinor,
         currency: CURRENCY,
+        ref_code: (window.getRefCode && window.getRefCode()) || null,
 
         // ✅ (опционально) просим платёжку вернуть пользователя внутрь мини-аппа:
         success_url: THANKS_SUCCESS,

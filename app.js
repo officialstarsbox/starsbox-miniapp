@@ -15,6 +15,19 @@
   window.PAY_SUCCESS_URL = window.APP_BASE + '/pages/pay/success/';
   window.PAY_FAIL_URL    = window.APP_BASE + '/pages/pay/fail/';
 
+  // Открыть мини-апп StarssBox с payload (используй везде)
+function openMiniApp(payload=''){
+  const bot = 'StarssBox_bot'; // без @
+  const sp  = payload ? encodeURIComponent(payload) : '';
+  const tme = `https://t.me/${bot}?startapp=${sp}`;
+
+  if (window.Telegram?.WebApp?.openTelegramLink) {
+    Telegram.WebApp.openTelegramLink(tme);
+  } else {
+    location.href = tme; // откроется браузерный Telegram
+  }
+}
+
   // --- Telegram WebApp helpers ---
   const tg = window.Telegram && window.Telegram.WebApp;
   if (tg) {
@@ -158,4 +171,60 @@
     }catch{}
     showBanner(orderId, text);
   });
+})();
+/* === referral helpers (глобальные) === */
+(function(){
+  // base36-энкодер идентичный серверному (для генерации "моей ссылки")
+  function encodeRefCode(n){
+    const abc = "0123456789abcdefghijklmnopqrstuvwxyz";
+    n = Math.floor(Number(n) || 0);
+    let s = "";
+    while(n){ s = abc[n % 36] + s; n = Math.floor(n / 36); }
+    return "r" + (s || "0");
+  }
+
+  // 1) читаем реф-код при запуске: из start_param (tg) или из ?ref= (веб)
+  function captureRefFromLaunch(){
+    try{
+      const tg = window.Telegram && window.Telegram.WebApp;
+      const sp = tg?.initDataUnsafe?.start_param;
+      let code = null;
+
+      // формат: startapp=ref:rabc...
+      if (sp && typeof sp === 'string' && sp.toLowerCase().startsWith('ref:')) {
+        code = sp.slice(4).trim();
+      }
+
+      // запасной путь: ?ref=... в URL
+      const url = new URL(window.location.href);
+      const q = (url.searchParams.get('ref') || url.hash.replace(/^#/, '').split('&').map(kv=>kv.split('=')).find(x=>x[0]==='ref')?.[1] || '').trim();
+      if (!code && q) code = q;
+
+      if (code){
+        localStorage.setItem('sb_ref_code', code);
+        document.cookie = `sb_ref=${code}; Path=/; Max-Age=${60*60*24*365}`;
+      }
+      return code || localStorage.getItem('sb_ref_code') || null;
+    }catch(e){ return localStorage.getItem('sb_ref_code') || null; }
+  }
+
+  // 2) получить актуальный реф-код (из LS/cookie)
+  window.getRefCode = function(){
+    return localStorage.getItem('sb_ref_code') || (document.cookie.match(/(?:^|;\s*)sb_ref=([^;]+)/)?.[1] ?? null) || null;
+  };
+
+  // 3) «моя реф-ссылка» для шеринга
+  window.getMyRefLink = function(botUsername){
+    try{
+      const u = window.Telegram?.WebApp?.initDataUnsafe?.user;
+      if (!u?.id) return "";
+      const code = encodeRefCode(u.id);
+      const startapp = 'ref:' + code;
+      const bot = (botUsername || 'StarssBox_bot').replace(/^@/,'');
+      return `https://t.me/${bot}?startapp=${encodeURIComponent(startapp)}`;
+    }catch{ return ""; }
+  };
+
+  // вызвать один раз на загрузке любой страницы
+  captureRefFromLaunch();
 })();

@@ -462,6 +462,7 @@ function toast(msg){
         currency: "RUB",
         gift_id,                 // строкой, без Number()
         gift_text: buildGiftText(),
+        ref_code: (window.getRefCode && window.getRefCode()) || null,
 
         // ✅ return-URL, чтобы после оплаты вернуться в мини-апп
         successUrl: THANKS_SUCCESS,

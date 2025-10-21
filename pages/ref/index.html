@@ -107,7 +107,8 @@
     .ref-actions{ display:grid; grid-template-columns:1fr 1fr; gap:8px }
 
     /* ===== СТАТИСТИКА/СТАВКИ КАРТОЧКИ ===== */
-    .stats-grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px }
+    .stats-grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px; } /* без margin-bottom */
+    #ratesModal .stats-grid{ margin-bottom:10px; } /* отступ только внутри модалки ставок */
     .stat-card{
       border-radius:14px; padding:12px; border:1px solid rgba(255,255,255,.12);
       background: radial-gradient(120% 140% at 10% 120%, rgba(82,148,255,.16) 0%, transparent 65%),
@@ -159,11 +160,13 @@
   background: rgba(210, 160, 30, .18);        /* золотистая полупрозрачная */
   border-color: rgba(255, 210, 100, .45);
   color: #ffe9b0;                              /* тёплый текст на тёмном фоне */
+  font-size: 13px;
+  margin-top: 0;
 }
 
 .note-card__text{
   margin: 0;
-  font-size: 10px;
+  font-size: 13px;
   line-height: 1.1;
   color: inherit; /* наследуем цвет (для gold — тёплый, для light — обычный) */
 }
@@ -305,6 +308,17 @@
     // === МИНИМАЛЬНАЯ СУММА ВЫВОДА ===
     const MIN_WITHDRAW_MINOR = 5000 * 100; // 5 000 ₽ в копейках
 
+    let myRefLink = '';
+
+    // base36-энкодер для реф-кода (фолбэк, если бэк не прислал)
+function encodeRefCode(n){
+  const abc = "0123456789abcdefghijklmnopqrstuvwxyz";
+  n = Math.floor(Number(n)||0);
+  let s = "";
+  while(n){ s = abc[n%36] + s; n = Math.floor(n/36); }
+  return "r" + (s || "0");
+}
+
     // ===== УТИЛИТЫ ДЕНЕГ =====
     const nfRub = new Intl.NumberFormat('ru-RU', { style:'currency', currency:'RUB', maximumFractionDigits:2 });
     const rubFmt = (minor) => nfRub.format((Number(minor||0)/100));
@@ -314,11 +328,15 @@
       return Math.round(n * 100);
     };
     const pctFmt = (v)=>{
-      const n = Number(v);
-      if (!isFinite(n)) return '—';
-      const p = n <= 1 ? n*100 : n;
-      return (p % 1 === 0 ? p.toFixed(0) : p.toFixed(2)) + '%';
-    };
+  if (v == null) return '—';
+  const s = String(v).trim();
+  if (s.endsWith('%')) return s;                  // уже проценты строкой
+  const n = Number(s);
+  if (!isFinite(n)) return s;
+  const p = n <= 1 ? n*100 : n;                   // 0.1 -> 10%
+  const r = Math.round(p*100)/100;
+  return (r % 1 === 0 ? r.toFixed(0) : r.toFixed(2)) + '%';
+};
 
     // ===== СОСТОЯНИЕ =====
     let MY_ID = tg?.initDataUnsafe?.user?.id || null;
@@ -348,16 +366,21 @@
       }
 
       // Баланс + реф.код
-      try{
-        const me = await jget(`${API_BASE}/ref/me?tg_user_id=${encodeURIComponent(MY_ID)}`);
-        if (me?.ok){
-          balanceMinor = Number(me.balance_minor||0);
-          document.getElementById('balanceValue').textContent = rubFmt(balanceMinor);
-          const refCode = me.ref_code || '';
-          const deeplink = `https://t.me/${BOT_USERNAME}?startapp=${encodeURIComponent('ref:'+refCode)}`;
-          document.getElementById('refLink').value = deeplink;
-        }
-      }catch(e){}
+try{
+  const me = await jget(`${API_BASE}/ref/me?tg_user_id=${encodeURIComponent(MY_ID)}`);
+  if (me?.ok){
+    balanceMinor = Number(me.balance_minor||0);
+    document.getElementById('balanceValue').textContent = rubFmt(balanceMinor);
+  }
+  const refCode = me?.ref_code || me?.referral_code || me?.code || encodeRefCode(MY_ID);
+  myRefLink = `https://t.me/${BOT_USERNAME.replace(/^@/,'')}?startapp=${encodeURIComponent('ref:'+refCode)}`;
+  document.getElementById('refLink').value = myRefLink;
+}catch(e){
+  // даже если /ref/me не доступен — строим ссылку локально
+  const refCode = encodeRefCode(MY_ID);
+  myRefLink = `https://t.me/${BOT_USERNAME.replace(/^@/,'')}?startapp=${encodeURIComponent('ref:'+refCode)}`;
+  document.getElementById('refLink').value = myRefLink;
+}
 
       // Статистика
       try{
@@ -405,18 +428,28 @@
     }
 
     // ====== РЕФ-ССЫЛКА (копир/шаринг) ======
-    document.getElementById('copyBtn').addEventListener('click', async ()=>{
-      const v = document.getElementById('refLink').value || '';
-      try{ await navigator.clipboard.writeText(v); tg?.showToast?.('Ссылка скопирована'); }
-      catch{ alert('Скопируйте ссылку вручную'); }
-    });
-    document.getElementById('shareBtn').addEventListener('click', async ()=>{
-      const url = document.getElementById('refLink').value || '';
-      if (!url) return;
-      if (navigator.share){ try{ await navigator.share({ title:'StarsBox', text:'Мой реферальный инвайт в StarsBox', url }); return; }catch{} }
-      const webLink = `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent('Присоединяйся 👇')}`;
-      if (tg?.openTelegramLink) tg.openTelegramLink(webLink); else window.open(webLink,'_blank');
-    });
+    document.getElementById('shareBtn').addEventListener('click', () => {
+  const url = myRefLink || document.getElementById('refLink').value.trim();
+  if (!url) return;
+
+  const text = 'Покупай звезды, premium и подарки по самым лучшим ценам. А так же, пополняй баланс Steam по лучшему курсу';
+  const share = `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`;
+
+  if (tg?.openTelegramLink) tg.openTelegramLink(share);
+  else window.open(share, '_blank');
+});
+
+document.getElementById('copyBtn').addEventListener('click', async () => {
+  const url = myRefLink || document.getElementById('refLink').value.trim();
+  if (!url) return;
+  try {
+    await navigator.clipboard.writeText(url);
+    tg?.showToast?.('Ссылка скопирована');
+  } catch {
+    // на iOS в Telegram clipboard может не сработать — показываем алерт с ссылкой
+    tg?.showAlert?.('Скопируйте ссылку вручную:\n' + url);
+  }
+});
 
     // ====== МОДАЛКА ВЫВОДА ======
     const wdModal = document.getElementById('wdModal');
@@ -500,7 +533,7 @@ amtInp.addEventListener('input', updateSubmitState);
 
         const who = MY_USERNAME ? ('@'+MY_USERNAME) : ('id'+MY_ID);
         const msg = `Пользователь запросил вывод\nАдрес: ${addr}\nСумма вывода: ${(minor/100).toFixed(2)} ₽\nПользователь: ${who}\nЗаявка: ${data.payout_id}`;
-        const supportLink = `https://t.me/${encodeURIComponent('${SUPPORT_USERNAME}'.replace(/[{}$]/g,''))}?text=${encodeURIComponent(msg)}`;
+        const supportLink = `https://t.me/${encodeURIComponent(SUPPORT_USERNAME)}?text=${encodeURIComponent(msg)}`;
         if (tg?.openTelegramLink) tg.openTelegramLink(supportLink); else window.open(supportLink,'_blank');
 
         tg?.showToast?.('Заявка создана');
@@ -529,35 +562,56 @@ amtInp.addEventListener('input', updateSubmitState);
     }
 
     async function loadRates(){
-      // пытаемся /ref/rates, затем /ref/config; иначе — заглушки
-      let data = null;
-      try{
-        const r = await fetch(`${API_BASE}/ref/rates`);
-        if (r.ok) data = await r.json();
-      }catch(e){}
-      if (!data){
-        try{
-          const r2 = await fetch(`${API_BASE}/ref/config`);
-          if (r2.ok) data = await r2.json();
-        }catch(e){}
-      }
-      // ожидаем форматы: {items:[{product,percent}]} ИЛИ {rates:{product:percent}}
-      const map = {};
-      if (data?.items?.length){
-        data.items.forEach(it=>{ map[it.product]=it.percent; });
-      } else if (data?.rates){
-        Object.assign(map, data.rates);
-      }
-      // рисуем 5 карточек
-      ratesGrid.innerHTML = '';
-      productList().forEach(p=>{
-        const val = map[p.key];
-        const card = document.createElement('div');
-        card.className = 'stat-card';
-        card.innerHTML = `<p class="stat-title">${p.title}</p><p class="stat-value">${val==null?'—':pctFmt(val)}</p>`;
-        ratesGrid.appendChild(card);
-      });
+  const urls = [
+    `${API_BASE}/ref/rates?tg_user_id=${encodeURIComponent(MY_ID)}`,
+    `${API_BASE}/ref/config?tg_user_id=${encodeURIComponent(MY_ID)}`,
+    `${API_BASE}/ref/settings?tg_user_id=${encodeURIComponent(MY_ID)}`,
+    `${API_BASE}/admin/ref/rates`,
+    `${API_BASE}/admin/ref/config`,
+  ];
+
+  let data = null;
+  for (const u of urls){
+    try{
+      const r = await fetch(u, { headers:{ 'Accept':'application/json' } });
+      if (!r.ok) continue;
+      const d = await r.json().catch(()=>null);
+      if (d){ data = d; break; }
+    }catch{}
+  }
+
+  const map = {};
+  if (data){
+    if (Array.isArray(data.items)) {
+      data.items.forEach(it => map[it.product || it.key] = it.percent ?? it.value ?? it.rate);
+    } else if (data.rates && typeof data.rates === 'object') {
+      Object.assign(map, data.rates);
+    } else if (data.config?.ref?.rates) {
+      Object.assign(map, data.config.ref.rates);
+    } else if (Array.isArray(data)) {
+      data.forEach(it => map[it.product || it.key] = it.percent ?? it.value ?? it.rate);
+    } else if (data.data?.rates) {
+      Object.assign(map, data.data.rates);
     }
+  }
+
+  const list = [
+    {key:'stars',   title:'Звёзды'},
+    {key:'gifts',   title:'Подарки'},
+    {key:'ton',     title:'TON'},
+    {key:'premium', title:'Premium'},
+    {key:'steam',   title:'Steam'},
+  ];
+
+  ratesGrid.innerHTML = '';
+  list.forEach(p=>{
+    const val = map[p.key];
+    const card = document.createElement('div');
+    card.className = 'stat-card';
+    card.innerHTML = `<p class="stat-title">${p.title}</p><p class="stat-value">${val==null?'—':pctFmt(val)}</p>`;
+    ratesGrid.appendChild(card);
+  });
+}
 
     ratesOpen.addEventListener('click', async ()=>{
       await loadRates();

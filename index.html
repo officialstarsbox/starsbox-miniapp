@@ -7,11 +7,6 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body class="home-page">
-  <!-- splash -->
-  <div id="splash" style="position:fixed;inset:0;background:#0e1220;display:grid;place-items:center;z-index:99999;">
-    <img src="/assets/icons/logo20.png" alt="StarsBox" width="160" height="160" />
-  </div>
-
   <!-- ===== Топбар ===== -->
   <header class="topbar">
     <div class="topbar__inner">
@@ -141,27 +136,6 @@
       </div>
     </section>
   </main>
-
-  <script>
-  (function registerSW(){
-    const scope = '/starsbox-miniapp-deploy/';
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register(scope + 'sw.js', {scope})
-        .then(() => navigator.serviceWorker.ready)
-        .then(reg => {
-          navigator.serviceWorker.addEventListener('message', (ev) => {
-            if (ev.data === 'sw-ready') {
-              const s = document.getElementById('splash'); if (s) s.remove();
-            }
-          });
-          setTimeout(() => { document.getElementById('splash')?.remove(); }, 5000);
-        })
-        .catch(() => { document.getElementById('splash')?.remove(); });
-    } else {
-      document.getElementById('splash')?.remove();
-    }
-  })();
-  </script>
 
   <!-- Telegram WebApp SDK -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>

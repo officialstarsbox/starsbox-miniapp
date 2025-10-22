@@ -310,14 +310,47 @@
 
     let myRefLink = '';
 
+    // === КОДИРОВАННАЯ РЕФ-ССЫЛКА (base64url) ===
+    // Никаких двоеточий и странных символов — Telegram Desktop любит только A–Z a–z 0–9 _ -
+    const b64url = {
+      enc: (str) => btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/,''),
+      dec: (s) => {
+        s = String(s||'').replace(/-/g,'+').replace(/_/g,'/');
+        s += '==='.slice((s.length + 3) % 4);
+        return atob(s);
+      }
+    };
+
+    // Пакуем реф-код в payload: "x" + base64url(JSON({"rc": "<код>"}))
+    const buildRefPayload = (refCode) => 'x' + b64url.enc(JSON.stringify({ rc: refCode }));
+
+    // Достаём реф-код из payload (поддерживаем и старые форматы, чтобы ничего не сломать)
+    const parseRefPayload = (sp) => {
+      const s = String(sp || '').trim();
+      if (!s) return null;
+      if (s[0] === 'x') {
+        try { const obj = JSON.parse(b64url.dec(s.slice(1))); return obj?.rc || null; } catch {}
+      }
+      if (s.startsWith('ref:')) return s.slice(4);
+      if (s.startsWith('ref_')) return s.slice(4);
+      if (s.startsWith('ref-')) return s.slice(4);
+      if (/^r[0-9a-z]+$/i.test(s)) return s; // старый формат "r<base36>"
+      return null;
+    };
+
+    // Чтение входящего start_param из Telegram WebApp
+    const getStartParam = () =>
+      (window.Telegram?.WebApp?.initDataUnsafe?.start_param) ||
+      new URLSearchParams(location.search).get('tgWebAppStartParam') || '';
+
     // base36-энкодер для реф-кода (фолбэк, если бэк не прислал)
-function encodeRefCode(n){
-  const abc = "0123456789abcdefghijklmnopqrstuvwxyz";
-  n = Math.floor(Number(n)||0);
-  let s = "";
-  while(n){ s = abc[n%36] + s; n = Math.floor(n/36); }
-  return "r" + (s || "0");
-}
+    function encodeRefCode(n){
+      const abc = "0123456789abcdefghijklmnopqrstuvwxyz";
+      n = Math.floor(Number(n)||0);
+      let s = "";
+      while(n){ s = abc[n%36] + s; n = Math.floor(n/36); }
+      return "r" + (s || "0");
+    }
 
     // ===== УТИЛИТЫ ДЕНЕГ =====
     const nfRub = new Intl.NumberFormat('ru-RU', { style:'currency', currency:'RUB', maximumFractionDigits:2 });
@@ -327,16 +360,17 @@ function encodeRefCode(n){
       if (!isFinite(n) || n < 0) return null;
       return Math.round(n * 100);
     };
-    const pctFmt = (v)=>{
-  if (v == null) return '—';
-  const s = String(v).trim();
-  if (s.endsWith('%')) return s;                  // уже проценты строкой
-  const n = Number(s);
-  if (!isFinite(n)) return s;
-  const p = n <= 1 ? n*100 : n;                   // 0.1 -> 10%
-  const r = Math.round(p*100)/100;
-  return (r % 1 === 0 ? r.toFixed(0) : r.toFixed(2)) + '%';
-};
+
+    const pctFmt = (v) => {
+      if (v == null) return '—';
+      const s = String(v).trim();
+      if (s.endsWith('%')) return s;                 // уже проценты строкой
+      const n = Number(s);
+      if (!isFinite(n)) return s;
+      const p = (n > 0 && n < 1) ? n * 100 : n;      // КРИТИЧЕСКАЯ ПРАВКА: строго между 0 и 1
+      const r = Math.round(p * 100) / 100;
+      return (r % 1 === 0 ? r.toFixed(0) : r.toFixed(2)) + '%';
+    };
 
     // ===== СОСТОЯНИЕ =====
     let MY_ID = tg?.initDataUnsafe?.user?.id || null;
@@ -364,23 +398,35 @@ function encodeRefCode(n){
         alert('Откройте страницу из мини-аппа Telegram, не удалось определить Telegram ID.');
         return;
       }
+      const sp = getStartParam();
+      const rcFromStart = parseRefPayload(sp);
+      if (rcFromStart) localStorage.setItem('sbox_ref_code', rcFromStart);
 
       // Баланс + реф.код
-try{
-  const me = await jget(`${API_BASE}/ref/me?tg_user_id=${encodeURIComponent(MY_ID)}`);
-  if (me?.ok){
-    balanceMinor = Number(me.balance_minor||0);
-    document.getElementById('balanceValue').textContent = rubFmt(balanceMinor);
-  }
-  const refCode = me?.ref_code || me?.referral_code || me?.code || encodeRefCode(MY_ID);
-  myRefLink = `https://t.me/${BOT_USERNAME.replace(/^@/,'')}?startapp=${encodeURIComponent('ref:'+refCode)}`;
-  document.getElementById('refLink').value = myRefLink;
-}catch(e){
-  // даже если /ref/me не доступен — строим ссылку локально
-  const refCode = encodeRefCode(MY_ID);
-  myRefLink = `https://t.me/${BOT_USERNAME.replace(/^@/,'')}?startapp=${encodeURIComponent('ref:'+refCode)}`;
-  document.getElementById('refLink').value = myRefLink;
-}
+      try{
+        const me = await jget(`${API_BASE}/ref/me?tg_user_id=${encodeURIComponent(MY_ID)}`);
+        if (me?.ok){
+          balanceMinor = Number(me.balance_minor||0);
+          document.getElementById('balanceValue').textContent = rubFmt(balanceMinor);
+        }
+        // берём реф-код с бэка или генерим локально
+        const refCode = me?.ref_code || me?.referral_code || me?.code || encodeRefCode(MY_ID);
+
+        // строим КРАСИВУЮ ссылку: ?startapp=x<base64url>
+        const payload = buildRefPayload(refCode);
+        myRefLink = `https://t.me/${BOT_USERNAME.replace(/^@/,'')}?startapp=${payload}`;
+        document.getElementById('refLink').value = myRefLink;
+
+        // кешируем для последующих покупок
+        localStorage.setItem('sbox_ref_code', refCode);
+      }catch(e){
+        // даже если /ref/me упал — делаем рабочую ссылку локально
+        const refCode = encodeRefCode(MY_ID);
+        const payload = buildRefPayload(refCode);
+        myRefLink = `https://t.me/${BOT_USERNAME.replace(/^@/,'')}?startapp=${payload}`;
+        document.getElementById('refLink').value = myRefLink;
+        localStorage.setItem('sbox_ref_code', refCode);
+      }
 
       // Статистика
       try{
@@ -463,10 +509,10 @@ document.getElementById('copyBtn').addEventListener('click', async () => {
     const sendBtn = document.getElementById('wdSend');
 
     function updateSubmitState(){
-  const minor = toMinor(amtInp.value);
-  const enough = minor !== null && minor >= MIN_WITHDRAW_MINOR && minor <= balanceMinor;
-  sendBtn.disabled = !enough;
-}
+      const minor = toMinor(amtInp.value);
+      const enough = minor !== null && minor >= MIN_WITHDRAW_MINOR && minor <= balanceMinor;
+      sendBtn.disabled = !enough;
+    }
 
 // обновляем при вводе суммы и открытии модалки
 amtInp.addEventListener('input', updateSubmitState);

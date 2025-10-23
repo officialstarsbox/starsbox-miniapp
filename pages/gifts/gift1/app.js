@@ -49,11 +49,23 @@
     }catch{ return null; }
   }
 
-  const rc = fromStartParam() || fromUrl();
-  if (rc) save(rc);
+  function bootstrapOnce(){
+    const rc = fromStartParam() || fromUrl();
+    if (rc) save(rc);
+  }
 
-  // отдаём тот же API, что и app.js
-  window.getRefCode = () => read();
+  // первый проход — как и было
+  bootstrapOnce();
+
+  // отдаём API: если в LS пусто, пробуем прочитать свежий start_param/URL прямо сейчас
+  window.getRefCode = () => {
+    const v = read();
+    if (v) return v;
+    const fresh = fromStartParam() || fromUrl();
+    if (fresh) { save(fresh); return fresh; }
+    return null;
+  };
+
 })();
 
 (function () {
@@ -502,6 +514,20 @@ function toast(msg){
 
       // кто платит — для честного реф-зачёта
       const actorId = (tg && tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.id) ? tg.initDataUnsafe.user.id : null;
+      
+      function readRefCodeSafe(){
+        try {
+          const v1 = (typeof window.getRefCode === 'function') ? window.getRefCode() : null;
+          if (v1) return v1;
+          // последняя попытка: прямо из Telegram и URL
+          const tg = window.Telegram && window.Telegram.WebApp;
+          const sp = tg?.initDataUnsafe?.start_param || '';
+          const qs = new URLSearchParams(location.search);
+          const raw = sp || qs.get('ref') || qs.get('rc') || qs.get('startapp') || qs.get('start_app') || '';
+          const v = String(raw).trim().toLowerCase().replace(/^ref:\s*/,'').replace(/^r:\s*/,'');
+          return /^r[0-9a-z]{1,31}$/.test(v) ? v : null;
+        } catch { return null; }
+      }
 
       const THANKS_SUCCESS = window.PAY_SUCCESS_URL;
       const THANKS_FAIL    = window.PAY_FAIL_URL;
@@ -517,7 +543,7 @@ function toast(msg){
         gift_text: buildGiftText(),
 
         // 🔗 рефералка + плательщик
-        ref_code: (window.getRefCode && window.getRefCode()) || null,
+        ref_code: readRefCodeSafe(),
         actor_tg_id: actorId,
 
         // ✅ вернуть пользователя в мини-апп

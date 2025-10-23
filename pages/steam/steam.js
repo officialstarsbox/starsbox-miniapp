@@ -1,3 +1,53 @@
+/* ========= REF BOOTSTRAP (одноразовый, общий для всех страниц) ========= */
+(function () {
+  const KEY = "sb_ref_code_v1";
+  const TTL_MS = 1000 * 60 * 60 * 24 * 90; // 90 дней
+
+  function save(rc){
+    if(!rc) return;
+    try{
+      localStorage.setItem(KEY, JSON.stringify({ rc:String(rc), ts: Date.now() }));
+    }catch{}
+  }
+  function read(){
+    try{
+      const item = JSON.parse(localStorage.getItem(KEY) || "null");
+      if (!item) return null;
+      if (Date.now() - Number(item.ts||0) > TTL_MS) { localStorage.removeItem(KEY); return null; }
+      return item.rc || null;
+    }catch{ return null; }
+  }
+  function normalize(s){
+    if (!s) return null;
+    let v = String(s).trim();
+    if (!v) return null;
+    if (v.startsWith("ref:")) v = v.slice(4);
+    if (v.startsWith("r:"))   v = v.slice(2);
+    if (v.startsWith("r") && /^[a-z0-9]+$/i.test(v.slice(1))) v = v.slice(1);
+    return v || null;
+  }
+  function fromStartParam(){
+    try{
+      const tg = window.Telegram && window.Telegram.WebApp;
+      const sp = tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param;
+      return normalize(sp);
+    }catch{ return null; }
+  }
+  function fromUrl(){
+    try{
+      const q = new URLSearchParams(location.search);
+      const raw = q.get("rc") || q.get("ref") || q.get("startapp") || q.get("start_app");
+      return normalize(raw);
+    }catch{ return null; }
+  }
+
+  const rc = fromStartParam() || fromUrl();
+  if (rc) save(rc);
+
+  window.getRefCode = window.getRefCode || (() => read());
+  window.clearRefCode = window.clearRefCode || (() => { try{ localStorage.removeItem(KEY); }catch{} });
+})();
+
 // БАЗА API StarsBox Fragment Service (наш домен)
 const API_BASE = 'https://api.starsbox.org';
 
@@ -165,16 +215,23 @@ const API_BASE = 'https://api.starsbox.org';
       const pct   = Number(window.SB_FEE_PERCENT || 9);
       const gross = Math.round(net * (1 + pct/100));
 
-      // ❗ минимальные изменения: добавили successUrl/returnUrl
+      // кто платит — для честного реф-зачёта
+      let actorId = null;
+      try { actorId = tg?.initDataUnsafe?.user?.id || null; } catch {}
+
+      // ❗ минимальные изменения: добавили successUrl/returnUrl и actor_tg_id
       const payload = {
         orderId: `ord_wata_${Date.now()}`,
         account: account,
         amount: Number(gross.toFixed(2)),    // сколько списываем с клиента (руб)
         netAmount: Number(net.toFixed(2)),   // сколько зачислится в Steam (руб)
         description: `Steam top-up ${net.toFixed(2)} RUB to ${account}`,
-        ref_code: (window.getRefCode && window.getRefCode()) || null,
 
-        // (необязательно) просим платёжку вернуть пользователя обратно в мини-апп
+        // рефералка + плательщик
+        ref_code: (window.getRefCode && window.getRefCode()) || null,
+        actor_tg_id: actorId,
+
+        // просим платёжку вернуть пользователя обратно в мини-апп
         successUrl: THANKS_SUCCESS,
         returnUrl:  THANKS_FAIL
       };
@@ -624,3 +681,4 @@ async function updateCreditBox(){
   // Первичная инициализация
   updateCreditBox();
 })();
+

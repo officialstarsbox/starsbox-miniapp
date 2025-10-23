@@ -1,3 +1,57 @@
+/* ========= REF BOOTSTRAP (одноразовый) ========= */
+(function () {
+  const KEY = "sb_ref_code_v1";
+  const TTL_MS = 1000 * 60 * 60 * 24 * 90; // 90 дней
+
+  function save(rc){
+    if(!rc) return;
+    try{
+      localStorage.setItem(KEY, JSON.stringify({ rc:String(rc), ts: Date.now() }));
+    }catch{}
+  }
+  function read(){
+    try{
+      const item = JSON.parse(localStorage.getItem(KEY) || "null");
+      if (!item) return null;
+      if (Date.now() - Number(item.ts||0) > TTL_MS) { localStorage.removeItem(KEY); return null; }
+      return item.rc || null;
+    }catch{ return null; }
+  }
+
+  function normalize(s){
+    if (!s) return null;
+    let v = String(s).trim();
+    if (!v) return null;
+    // поддерживаем "ref:XXXX", "r:XXXX", "rXXXX", просто "XXXX"
+    if (v.startsWith("ref:")) v = v.slice(4);
+    if (v.startsWith("r:"))   v = v.slice(2);
+    if (v.startsWith("r") && /^[a-z0-9]+$/i.test(v.slice(1))) v = v.slice(1);
+    return v || null;
+  }
+
+  function fromStartParam(){
+    try{
+      const tg = window.Telegram && window.Telegram.WebApp;
+      const sp = tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param;
+      return normalize(sp);
+    }catch{ return null; }
+  }
+  function fromUrl(){
+    try{
+      const q = new URLSearchParams(location.search);
+      const raw = q.get("rc") || q.get("ref") || q.get("startapp") || q.get("start_app");
+      return normalize(raw);
+    }catch{ return null; }
+  }
+
+  const rc = fromStartParam() || fromUrl();
+  if (rc) save(rc);
+
+  window.getRefCode = () => read();
+  window.clearRefCode = () => { try{ localStorage.removeItem(KEY); }catch{} };
+})();
+
+/* ========= UI / валидация ========= */
 (function () {
   // ---------- helpers ----------
   function ready(fn){
@@ -358,7 +412,12 @@
         qty,                       // число звёзд
         amount_minor: amountMinor, // копейки
         currency: CURRENCY,        // "RUB"
+
+        // 🔗 реф-код из localStorage/URL/TG start_param
         ref_code: (window.getRefCode && window.getRefCode()) || null,
+
+        // 👤 кто платит (для «липкой» привязки на бэке)
+        actor_tg_id: tg?.initDataUnsafe?.user?.id || null,
 
         // ✅ адреса возврата (бэку и/или провайдеру)
         successUrl: THANKS_SUCCESS,
@@ -397,6 +456,7 @@
 
   // === Пакеты ===
   function initPacks() {
+    const packsList = $("#packsList");
     if (!packsList) return;
     const btns = $$(".pack-item");
 
@@ -436,6 +496,9 @@
 
   // === Prefill: «купить себе» ===
   function initBuyForMe() {
+    const buyForMeBtn = $("#buyForMeBtn");
+    const usernameInput = $("#tgUsername");
+    const tg = (window.Telegram && window.Telegram.WebApp) ? window.Telegram.WebApp : null;
     if (!buyForMeBtn || !usernameInput) return;
     buyForMeBtn.addEventListener("click", () => {
       let u = "";
@@ -483,6 +546,8 @@
 
   // === Оплата (кнопки) ===
   function initPayButtons() {
+    const paySbpBtn = $("#paySbpBtn");
+    const payCryptoBtn = $("#payCryptoBtn");
     if (paySbpBtn) {
       paySbpBtn.addEventListener("click", () => initiatePayment("wata"));
     }
@@ -508,4 +573,3 @@
     init();
   }
 })();
-

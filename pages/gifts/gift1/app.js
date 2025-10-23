@@ -1,3 +1,56 @@
+/* ========= REF BOOTSTRAP (одноразовый) ========= */
+(function () {
+  const KEY = "sb_ref_code_v1";
+  const TTL_MS = 1000 * 60 * 60 * 24 * 90; // 90 дней
+
+  function save(rc){
+    if(!rc) return;
+    try{
+      localStorage.setItem(KEY, JSON.stringify({ rc:String(rc), ts: Date.now() }));
+    }catch{}
+  }
+  function read(){
+    try{
+      const item = JSON.parse(localStorage.getItem(KEY) || "null");
+      if (!item) return null;
+      if (Date.now() - Number(item.ts||0) > TTL_MS) { localStorage.removeItem(KEY); return null; }
+      return item.rc || null;
+    }catch{ return null; }
+  }
+
+  function normalize(s){
+    if (!s) return null;
+    let v = String(s).trim();
+    if (!v) return null;
+    // поддерживаем "ref:XXXX", "r:XXXX", "rXXXX", просто "XXXX"
+    if (v.startsWith("ref:")) v = v.slice(4);
+    if (v.startsWith("r:"))   v = v.slice(2);
+    if (v.startsWith("r") && /^[a-z0-9]+$/i.test(v.slice(1))) v = v.slice(1);
+    return v || null;
+  }
+
+  function fromStartParam(){
+    try{
+      const tg = window.Telegram && window.Telegram.WebApp;
+      const sp = tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param;
+      return normalize(sp);
+    }catch{ return null; }
+  }
+  function fromUrl(){
+    try{
+      const q = new URLSearchParams(location.search);
+      const raw = q.get("rc") || q.get("ref") || q.get("startapp") || q.get("start_app");
+      return normalize(raw);
+    }catch{ return null; }
+  }
+
+  const rc = fromStartParam() || fromUrl();
+  if (rc) save(rc);
+
+  window.getRefCode = () => read();
+  window.clearRefCode = () => { try{ localStorage.removeItem(KEY); }catch{} };
+})();
+
 (function () {
   // ---------- helpers ----------
   function ready(fn){
@@ -442,12 +495,8 @@ function toast(msg){
         return;
       }
 
-      // пробуем взять user.id из мини-аппа; отправляем как строку
-      let tg_user_id;
-      try {
-        const id = tg?.initDataUnsafe?.user?.id;
-        if (id) tg_user_id = String(id);
-      } catch {}
+      // кто платит — для честного реф-зачёта
+      const actorId = (tg && tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.id) ? tg.initDataUnsafe.user.id : null;
 
       const THANKS_SUCCESS = window.PAY_SUCCESS_URL;
       const THANKS_FAIL    = window.PAY_FAIL_URL;
@@ -455,19 +504,21 @@ function toast(msg){
       const payload = {
         provider,
         product: "gift",
-        tg_username: username,   // было: username
-        tg_user_id,              // опционально, если доступен
+        tg_username: username,        // получатель (как и раньше)
         qty: 1,
         amount_minor: amountMinor,
         currency: "RUB",
-        gift_id,                 // строкой, без Number()
+        gift_id,                      // строкой, без Number()
         gift_text: buildGiftText(),
-        ref_code: (window.getRefCode && window.getRefCode()) || null,
 
-        // ✅ return-URL, чтобы после оплаты вернуться в мини-апп
+        // 🔗 рефералка + плательщик
+        ref_code: (window.getRefCode && window.getRefCode()) || null,
+        actor_tg_id: actorId,
+
+        // ✅ вернуть пользователя в мини-апп
         successUrl: THANKS_SUCCESS,
         returnUrl:  THANKS_FAIL,
-        success_url: THANKS_SUCCESS, // дубль в snake_case — на всякий случай
+        success_url: THANKS_SUCCESS,  // дубль в snake_case — на всякий случай
         fail_url:    THANKS_FAIL
       };
 
@@ -558,3 +609,4 @@ function toast(msg){
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
   else init();
 })();
+

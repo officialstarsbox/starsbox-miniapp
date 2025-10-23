@@ -1,3 +1,56 @@
+/* ========= REF BOOTSTRAP (одноразовый) ========= */
+(function () {
+  const KEY = "sb_ref_code_v1";
+  const TTL_MS = 1000 * 60 * 60 * 24 * 90; // 90 дней
+
+  function save(rc){
+    if(!rc) return;
+    try{
+      localStorage.setItem(KEY, JSON.stringify({ rc:String(rc), ts: Date.now() }));
+    }catch{}
+  }
+  function read(){
+    try{
+      const item = JSON.parse(localStorage.getItem(KEY) || "null");
+      if (!item) return null;
+      if (Date.now() - Number(item.ts||0) > TTL_MS) { localStorage.removeItem(KEY); return null; }
+      return item.rc || null;
+    }catch{ return null; }
+  }
+
+  function normalize(s){
+    if (!s) return null;
+    let v = String(s).trim();
+    if (!v) return null;
+    // поддерживаем "ref:XXXX", "r:XXXX", "rXXXX", просто "XXXX"
+    if (v.startsWith("ref:")) v = v.slice(4);
+    if (v.startsWith("r:"))   v = v.slice(2);
+    if (v.startsWith("r") && /^[a-z0-9]+$/i.test(v.slice(1))) v = v.slice(1);
+    return v || null;
+  }
+
+  function fromStartParam(){
+    try{
+      const tg = window.Telegram && window.Telegram.WebApp;
+      const sp = tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param;
+      return normalize(sp);
+    }catch{ return null; }
+  }
+  function fromUrl(){
+    try{
+      const q = new URLSearchParams(location.search);
+      const raw = q.get("rc") || q.get("ref") || q.get("startapp") || q.get("start_app");
+      return normalize(raw);
+    }catch{ return null; }
+  }
+
+  const rc = fromStartParam() || fromUrl();
+  if (rc) save(rc);
+
+  window.getRefCode = () => read();
+  window.clearRefCode = () => { try{ localStorage.removeItem(KEY); }catch{} };
+})();
+
 (function(){
   function ready(fn){
     if (document.readyState !== 'loading') fn();
@@ -401,6 +454,9 @@
       const THANKS_SUCCESS = window.PAY_SUCCESS_URL;
       const THANKS_FAIL    = window.PAY_FAIL_URL;
 
+      const actorId = tg?.initDataUnsafe?.user?.id || null;
+      const refCode = (window.getRefCode && window.getRefCode()) || null;
+
       // Отправляем все понятные поля — если бэк вернёт 422, повторим «минимальным» набором
       const payloadFull = {
         provider,                 // "wata" | "heleket"
@@ -411,7 +467,10 @@
         qty: months,              // если бэк ожидает qty
         amount_minor: amountMinor,
         currency: CURRENCY,
-        ref_code: (window.getRefCode && window.getRefCode()) || null,
+
+        // 🔗 реф-код + кто платит
+        ref_code: refCode,
+        actor_tg_id: actorId,
 
         // ✅ return-URL для открытия внутри мини-аппа
         successUrl: THANKS_SUCCESS,
@@ -435,6 +494,10 @@
           qty: months,
           amount_minor: amountMinor,
           currency: CURRENCY,
+
+          // тоже не теряем реф и актёра
+          ref_code: refCode,
+          actor_tg_id: actorId,
 
           successUrl: THANKS_SUCCESS,
           returnUrl:  THANKS_FAIL,
@@ -537,4 +600,5 @@
     init();
   }
 })();
+
 

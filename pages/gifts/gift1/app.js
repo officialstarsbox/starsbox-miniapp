@@ -42,12 +42,18 @@
     }catch{ return null; }
   }
   function fromUrl(){
-    try{
-      const q = new URLSearchParams(location.search);
-      const raw = q.get("ref") || q.get("rc") || q.get("startapp") || q.get("start_app");
-      return normalize(raw);
-    }catch{ return null; }
-  }
+  try{
+    const q = new URLSearchParams(location.search);
+    const raw =
+      q.get("ref") ||
+      q.get("rc") ||
+      q.get("startapp") ||
+      q.get("start_app") ||
+      q.get("tgWebAppStartParam") ||
+      q.get("tgwebappstartparam");
+    return normalize(raw);
+  }catch{ return null; }
+}
 
   function bootstrapOnce(){
     const rc = fromStartParam() || fromUrl();

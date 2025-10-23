@@ -1,45 +1,50 @@
-/* ========= REF BOOTSTRAP (одноразовый) ========= */
+/* ========= REF BOOTSTRAP (polyfill-only) ========= */
 (function () {
-  const KEY = "sb_ref_code_v1";
-  const TTL_MS = 1000 * 60 * 60 * 24 * 90; // 90 дней
+  // если глобальный app.js уже дал getRefCode — выходим и не трогаем ничего
+  if (typeof window.getRefCode === 'function') return;
+
+  const KEY = "sb_ref_code"; // унифицируем ключ с app.js
+  const TTL_MS = 1000 * 60 * 60 * 24 * 365; // 1 год, как в app.js
+  const REF_RE = /^r[0-9a-z]{1,31}$/;       // тот же формат, что на бэке
 
   function save(rc){
-    if(!rc) return;
     try{
-      localStorage.setItem(KEY, JSON.stringify({ rc:String(rc), ts: Date.now() }));
+      if (!REF_RE.test(String(rc||'').toLowerCase())) return;
+      localStorage.setItem(KEY, String(rc).toLowerCase());
+      document.cookie = `sb_ref=${String(rc).toLowerCase()}; Path=/; Max-Age=${60*60*24*365}; SameSite=Lax`;
     }catch{}
   }
   function read(){
     try{
-      const item = JSON.parse(localStorage.getItem(KEY) || "null");
-      if (!item) return null;
-      if (Date.now() - Number(item.ts||0) > TTL_MS) { localStorage.removeItem(KEY); return null; }
-      return item.rc || null;
-    }catch{ return null; }
+      const ls = localStorage.getItem(KEY);
+      if (REF_RE.test(String(ls||''))) return String(ls).toLowerCase();
+      const m = document.cookie.match(/(?:^|;\s*)sb_ref=([^;]+)/);
+      if (m && REF_RE.test(m[1])) return m[1].toLowerCase();
+    }catch{}
+    return null;
   }
 
-  function normalize(s){
-    if (!s) return null;
-    let v = String(s).trim();
-    if (!v) return null;
-    // поддерживаем "ref:XXXX", "r:XXXX", "rXXXX", просто "XXXX"
-    if (v.startsWith("ref:")) v = v.slice(4);
-    if (v.startsWith("r:"))   v = v.slice(2);
-    if (v.startsWith("r") && /^[a-z0-9]+$/i.test(v.slice(1))) v = v.slice(1);
-    return v || null;
+  function normalize(raw){
+    if (!raw) return null;
+    let v = String(raw).trim().toLowerCase();
+    if (v.startsWith("ref:")) v = v.slice(4).trim();
+    if (v.startsWith("r:"))   v = v.slice(2).trim();
+    if (v.startsWith("r") && /^[0-9a-z]+$/.test(v.slice(1))) v = v; // уже норм
+    // итоговая проверка
+    return REF_RE.test(v) ? v : null;
   }
 
   function fromStartParam(){
     try{
       const tg = window.Telegram && window.Telegram.WebApp;
-      const sp = tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param;
+      const sp = tg?.initDataUnsafe?.start_param;
       return normalize(sp);
     }catch{ return null; }
   }
   function fromUrl(){
     try{
       const q = new URLSearchParams(location.search);
-      const raw = q.get("rc") || q.get("ref") || q.get("startapp") || q.get("start_app");
+      const raw = q.get("ref") || q.get("rc") || q.get("startapp") || q.get("start_app");
       return normalize(raw);
     }catch{ return null; }
   }
@@ -47,8 +52,8 @@
   const rc = fromStartParam() || fromUrl();
   if (rc) save(rc);
 
+  // отдаём тот же API, что и app.js
   window.getRefCode = () => read();
-  window.clearRefCode = () => { try{ localStorage.removeItem(KEY); }catch{} };
 })();
 
 (function(){

@@ -41,20 +41,19 @@
       return normalize(sp);
     }catch{ return null; }
   }
-
   function fromUrl(){
-    try{
-      const q = new URLSearchParams(location.search);
-      const raw =
-        q.get("ref") ||
-        q.get("rc") ||
-        q.get("startapp") ||
-        q.get("start_app") ||
-        q.get("tgWebAppStartParam") ||
-        q.get("tgwebappstartparam");
-      return normalize(raw);
-    }catch{ return null; }
-  }
+  try{
+    const q = new URLSearchParams(location.search);
+    const raw =
+      q.get("ref") ||
+      q.get("rc") ||
+      q.get("startapp") ||
+      q.get("start_app") ||
+      q.get("tgWebAppStartParam") ||
+      q.get("tgwebappstartparam");
+    return normalize(raw);
+  }catch{ return null; }
+}
 
 function bootstrapOnce(){
   const rc = fromStartParam() || fromUrl();
@@ -549,11 +548,9 @@ function toast(msg){
         ref_code: readRefCodeSafe(),
         actor_tg_id: actorId,
 
-        // НОВОЕ: передаём сырой старт-параметр (из WebApp и из URL)
+        // НОВОЕ: шлём сырой start_param (и URL-альтернативу) — бэку будет из чего восстановить
         start_param: (tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param) ||
                      (new URLSearchParams(location.search).get('tgWebAppStartParam')) ||
-                     (new URLSearchParams(location.search).get('startapp')) ||
-                     (new URLSearchParams(location.search).get('start')) ||
                      null,
 
         // ✅ вернуть пользователя в мини-апп

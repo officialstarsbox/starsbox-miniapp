@@ -228,12 +228,6 @@ function openMiniApp(payload=''){
       raw = u.searchParams.get('startapp') || u.searchParams.get('start') || null;
     }
 
-    // 2.5) tgWebAppStartParam в URL (Telegram так часто пробрасывает payload)
-    if (!raw){
-      const u = new URL(window.location.href);
-      raw = u.searchParams.get('tgWebAppStartParam') || u.searchParams.get('tgwebappstartparam') || null;
-    }
-
     // 3) явный ?ref= / #ref= в URL (для локальных тестов)
     if (!raw){
       const u = new URL(window.location.href);

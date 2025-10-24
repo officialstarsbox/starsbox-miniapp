@@ -26,7 +26,6 @@
       --block-gap:16px;
     }
 
-    /* ===== БАЗА + ФОН ===== */
     body.ref-page{
       margin:0; color:var(--text);
       font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
@@ -39,7 +38,6 @@
       background-repeat:no-repeat; background-size:cover; pointer-events:none;
     }
 
-    /* ===== ТОПБАР ===== */
     .topbar{
       position:sticky; top:0; display:grid; grid-template-columns:44px 1fr 44px;
       align-items:center; gap:8px; padding:14px calc((100vw - var(--form-w))/2) 14px;
@@ -61,11 +59,9 @@
     .back-btn:active{ transform:translateY(1px) }
     .back-btn:focus-visible{ outline:2px solid var(--focus); outline-offset:2px }
 
-    /* ===== КОЛОНКА КОНТЕНТА ===== */
     .wrap{ width:100%; max-width:var(--form-w); margin:20px auto 40px; padding:0 6px 20px }
     .wrap>*+*{ margin-top:var(--block-gap) }
 
-    /* ===== КАРТОЧКИ ===== */
     .group-card{
       border-radius:14px; padding:14px; border:1px solid var(--card-brd);
       background:rgba(255,255,255,.06); box-shadow:inset 0 1px 0 rgba(255,255,255,.05);
@@ -73,7 +69,6 @@
     .muted{ color:var(--muted) }
     .sec-title{ margin:0 0 8px; font-size:14px; font-weight:400 }
 
-    /* ===== КНОПКИ/ИНПУТЫ ===== */
     .btn{
       min-height:40px; width:100%; border-radius:14px; border:1px solid var(--btn-brd);
       background:var(--btn-bg); color:var(--text); cursor:pointer;
@@ -90,7 +85,6 @@
       background:var(--btn-bg); color:var(--text); padding:0 12px; font-size:14px;
     }
 
-    /* ===== ТЕКСТОВАЯ КНОПКА-ССЫЛКА ===== */
     .link-btn{
       background:transparent; border:0; color:#9fb2ff;
       font-size:13px; padding:0 2px; cursor:pointer; border-radius:8px; transition:background .2s;
@@ -98,17 +92,14 @@
     .link-btn:hover{ background:rgba(255,255,255,.06) }
     .link-btn:focus-visible{ outline:2px solid var(--focus); outline-offset:2px }
 
-    /* ===== БАЛАНС + КНОПКА ВЫВОДА ===== */
     .balance{ display:grid; grid-template-columns:1fr auto; align-items:center; gap:10px }
     .balance__val{ font-size:22px; line-height:1.2 }
 
-    /* ===== РЕФ-ССЫЛКА ===== */
     .ref-field{ display:grid; gap:8px }
     .ref-actions{ display:grid; grid-template-columns:1fr 1fr; gap:8px }
 
-    /* ===== СТАТИСТИКА/СТАВКИ КАРТОЧКИ ===== */
-    .stats-grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px; } /* без margin-bottom */
-    #ratesModal .stats-grid{ margin-bottom:10px; } /* отступ только внутри модалки ставок */
+    .stats-grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    #ratesModal .stats-grid{ margin-bottom:10px; }
     .stat-card{
       border-radius:14px; padding:12px; border:1px solid rgba(255,255,255,.12);
       background: radial-gradient(120% 140% at 10% 120%, rgba(82,148,255,.16) 0%, transparent 65%),
@@ -118,16 +109,14 @@
     .stat-title{ margin:0 0 6px; font-size:12px; color:var(--muted) }
     .stat-value{ margin:0; font-size:18px }
 
-    /* ===== ТАБЛИЦЫ ===== */
     .table{ width:100%; border-collapse:collapse; font-size:14px; table-layout:fixed }
     .table th,.table td{ padding:10px; border-bottom:1px solid rgba(255,255,255,.08); text-align:left; vertical-align:top; word-break:break-word }
     .table th{ color:var(--muted); font-weight:500 }
 
-    /* ===== МОДАЛКИ ===== */
     .modal{ position:fixed; inset:0; display:none; place-items:center; background:rgba(0,0,0,.45); z-index:50 }
     .modal.is-open{ display:grid }
     .modal__card{
-      position: relative;           /* важно для крестика */
+      position: relative;
       width:min(520px, 92vw); border-radius:16px; padding:16px; background:rgba(15,22,40,.98);
       border:1px solid rgba(255,255,255,.12); box-shadow:0 12px 40px rgba(0,0,0,.45);
       max-height: 90vh; overflow:auto;
@@ -143,35 +132,19 @@
     .close-x:before,.close-x:after{ content:""; position:absolute; left:50%; top:50%; width:12px; height:2px; background:#fff; transform-origin:center }
     .close-x:before{ transform:translate(-50%,-50%) rotate(45deg) } .close-x:after{ transform:translate(-50%,-50%) rotate(-45deg) }
 
-    /* ===== ПОДСКАЗКИ / ИНФО-ПАНЕЛИ ===== */
-.note-card{
-  border-radius: 14px;
-  padding: 10px;
-  border: 1px solid rgba(255,255,255,.18);
-  margin-top: 0px;
-}
+    .note-card{
+      border-radius: 14px;
+      padding: 10px;
+      border: 1px solid rgba(255,255,255,.18);
+      margin-top: 0px;
+    }
+    .note-card--light{ background: rgba(255,255,255,.10); border-color: rgba(255,255,255,.30); }
+    .note-card--gold{ background: rgba(210,160,30,.18); border-color: rgba(255,210,100,.45); color:#ffe9b0; font-size:13px; margin-top:0; }
+    .note-card__text{ margin:0; font-size:13px; line-height:1.1; color:inherit; }
 
-.note-card--light{
-  background: rgba(255,255,255,.10);          /* белая полупрозрачная подложка */
-  border-color: rgba(255,255,255,.30);
-}
+    .tbl-actions{ margin-top:10px; display:grid }
+    .tbl-actions .btn[hidden]{ display:none }
 
-.note-card--gold{
-  background: rgba(210, 160, 30, .18);        /* золотистая полупрозрачная */
-  border-color: rgba(255, 210, 100, .45);
-  color: #ffe9b0;                              /* тёплый текст на тёмном фоне */
-  font-size: 13px;
-  margin-top: 0;
-}
-
-.note-card__text{
-  margin: 0;
-  font-size: 13px;
-  line-height: 1.1;
-  color: inherit; /* наследуем цвет (для gold — тёплый, для light — обычный) */
-}
-
-    /* нижний «воздух» */
     .ref-page{ --bottom-space: clamp(24px, 6vh, 64px) }
     @supports(padding: env(safe-area-inset-bottom)){
       .ref-page{ --bottom-space: calc(32px + env(safe-area-inset-bottom)) }
@@ -180,16 +153,13 @@
   </style>
 </head>
 <body class="ref-page">
-  <!-- ===== Топбар ===== -->
   <header class="topbar">
     <a class="back-btn" href="../../index.html" aria-label="Назад"></a>
     <h1 class="title">Реферальная программа</h1>
     <div class="topbar-spacer" aria-hidden="true"></div>
   </header>
 
-  <!-- ===== Контент ===== -->
   <main class="wrap">
-    <!-- Баланс -->
     <section class="group-card">
       <h2 class="sec-title muted">Баланс</h2>
       <div class="balance">
@@ -198,7 +168,6 @@
       </div>
     </section>
 
-    <!-- Реферальная ссылка -->
     <section class="group-card">
       <h2 class="sec-title muted">Ваша реферальная ссылка</h2>
       <div class="ref-field">
@@ -210,7 +179,6 @@
       </div>
     </section>
 
-    <!-- ИНФО-ПАНЕЛЬ -->
     <section class="group-card">
       <h2 class="sec-title muted" style="margin-bottom:6px">Реферальные начисления</h2>
       <p class="muted" style="margin:0 0 8px">
@@ -218,7 +186,6 @@
       </p>
     </section>
 
-    <!-- Статистика -->
     <section class="group-card">
       <h2 class="sec-title muted">Статистика</h2>
       <div class="stats-grid">
@@ -229,26 +196,30 @@
       </div>
     </section>
 
-    <!-- Ваши рефералы -->
     <section class="group-card">
       <h2 class="sec-title muted">Ваши рефералы</h2>
       <table class="table" id="refsTable">
         <thead><tr><th>Реферал</th><th>Покупок</th><th>Оплачено</th></tr></thead>
         <tbody id="refsBody"></tbody>
       </table>
+      <div class="tbl-actions">
+        <button id="refsMore" class="btn">Показать ещё</button>
+      </div>
     </section>
 
-    <!-- Начисления -->
     <section class="group-card">
       <h2 class="sec-title muted">Начисления</h2>
       <table class="table" id="tbl">
         <thead><tr><th>Дата</th><th>Сумма</th><th>Бонус</th></tr></thead>
         <tbody id="tbody"></tbody>
       </table>
+      <div class="tbl-actions">
+        <button id="ledgerMore" class="btn">Показать ещё</button>
+      </div>
     </section>
   </main>
 
-  <!-- ===== МОДАЛЬНОЕ ОКНО ВЫВОДА ===== -->
+  <!-- ===== Модалка вывода ===== -->
   <div class="modal" id="wdModal" aria-hidden="true">
     <div class="modal__card">
       <button class="close-x" id="wdClose" aria-label="Закрыть"></button>
@@ -278,15 +249,13 @@
     </div>
   </div>
 
-  <!-- ===== МОДАЛЬНОЕ ОКНО С АКТУАЛЬНЫМИ СТАВКАМИ ===== -->
+  <!-- ===== Модалка ставок ===== -->
   <div class="modal" id="ratesModal" aria-hidden="true">
     <div class="modal__card">
       <button class="close-x" id="ratesClose" aria-label="Закрыть"></button>
       <h3 class="modal__title">Актуальные ставки</h3>
 
-      <div class="stats-grid" id="ratesGrid">
-        <!-- сюда подставим 5 карточек с названиями продуктов и % -->
-      </div>
+      <div class="stats-grid" id="ratesGrid"></div>
 
       <div class="note-card note-card--light">
         <p class="note-card__text">
@@ -308,42 +277,24 @@
     // === МИНИМАЛЬНАЯ СУММА ВЫВОДА ===
     const MIN_WITHDRAW_MINOR = 5000 * 100; // 5 000 ₽ в копейках
 
-    let myRefLink = '';
+    // === КЕШ РЕФКОДА (единый ключ + cookie) ===
+    const REF_KEY = 'sb_ref_code';
+    function cacheRef(code){
+      try{
+        const v = String(code||'').trim().toLowerCase();
+        if (!/^r[0-9a-z]{1,31}$/.test(v)) return;
+        localStorage.setItem(REF_KEY, v);
+        document.cookie = 'sb_ref=' + v + '; Path=/; Max-Age=' + (60*60*24*365) + '; SameSite=Lax';
+      }catch{}
+    }
 
-    // === КОДИРОВАННАЯ РЕФ-ССЫЛКА (base64url) ===
-    // Никаких двоеточий и странных символов — Telegram Desktop любит только A–Z a–z 0–9 _ -
+    // === base64url payload ===
     const b64url = {
       enc: (str) => btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/,''),
-      dec: (s) => {
-        s = String(s||'').replace(/-/g,'+').replace(/_/g,'/');
-        s += '==='.slice((s.length + 3) % 4);
-        return atob(s);
-      }
     };
-
-    // Пакуем реф-код в payload: "x" + base64url(JSON({"rc": "<код>"}))
     const buildRefPayload = (refCode) => 'x' + b64url.enc(JSON.stringify({ rc: refCode }));
 
-    // Достаём реф-код из payload (поддерживаем и старые форматы, чтобы ничего не сломать)
-    const parseRefPayload = (sp) => {
-      const s = String(sp || '').trim();
-      if (!s) return null;
-      if (s[0] === 'x') {
-        try { const obj = JSON.parse(b64url.dec(s.slice(1))); return obj?.rc || null; } catch {}
-      }
-      if (s.startsWith('ref:')) return s.slice(4);
-      if (s.startsWith('ref_')) return s.slice(4);
-      if (s.startsWith('ref-')) return s.slice(4);
-      if (/^r[0-9a-z]+$/i.test(s)) return s; // старый формат "r<base36>"
-      return null;
-    };
-
-    // Чтение входящего start_param из Telegram WebApp
-    const getStartParam = () =>
-      (window.Telegram?.WebApp?.initDataUnsafe?.start_param) ||
-      new URLSearchParams(location.search).get('tgWebAppStartParam') || '';
-
-    // base36-энкодер для реф-кода (фолбэк, если бэк не прислал)
+    // fallback-энкодер (если бэк вдруг не вернул код)
     function encodeRefCode(n){
       const abc = "0123456789abcdefghijklmnopqrstuvwxyz";
       n = Math.floor(Number(n)||0);
@@ -352,7 +303,7 @@
       return "r" + (s || "0");
     }
 
-    // ===== УТИЛИТЫ ДЕНЕГ =====
+    // ===== Утилиты денег/форматов =====
     const nfRub = new Intl.NumberFormat('ru-RU', { style:'currency', currency:'RUB', maximumFractionDigits:2 });
     const rubFmt = (minor) => nfRub.format((Number(minor||0)/100));
     const toMinor = (val) => {
@@ -360,22 +311,22 @@
       if (!isFinite(n) || n < 0) return null;
       return Math.round(n * 100);
     };
-
     const pctFmt = (v) => {
       if (v == null) return '—';
       const s = String(v).trim();
-      if (s.endsWith('%')) return s;                 // уже проценты строкой
+      if (s.endsWith('%')) return s;
       const n = Number(s);
       if (!isFinite(n)) return s;
-      const p = (n > 0 && n < 1) ? n * 100 : n;      // КРИТИЧЕСКАЯ ПРАВКА: строго между 0 и 1
+      const p = (n > 0 && n < 1) ? n * 100 : n;
       const r = Math.round(p * 100) / 100;
       return (r % 1 === 0 ? r.toFixed(0) : r.toFixed(2)) + '%';
     };
 
-    // ===== СОСТОЯНИЕ =====
+    // ===== Состояние =====
     let MY_ID = tg?.initDataUnsafe?.user?.id || null;
     let MY_USERNAME = tg?.initDataUnsafe?.user?.username || '';
     let balanceMinor = 0;
+    let myRefLink = '';
 
     function resolveMyIdIfMissing(){
       if (MY_ID) return MY_ID;
@@ -385,22 +336,18 @@
     }
 
     async function jget(url){
-      const r = await fetch(url, { headers:{ 'Accept':'application/json' }});
+      const r = await fetch(url, { headers:{ 'Accept':'application/json' } });
       if(!r.ok) throw new Error('HTTP '+r.status);
       return r.json();
     }
-
     function setText(id, t){ const el = document.getElementById(id); if (el) el.textContent = t; }
 
-    // ====== ИНИТ ======
+    // ====== INIT ======
     async function init(){
       if (!resolveMyIdIfMissing()){
         alert('Откройте страницу из мини-аппа Telegram, не удалось определить Telegram ID.');
         return;
       }
-      const sp = getStartParam();
-      const rcFromStart = parseRefPayload(sp);
-      if (rcFromStart) localStorage.setItem('sbox_ref_code', rcFromStart);
 
       // Баланс + реф.код
       try{
@@ -409,23 +356,18 @@
           balanceMinor = Number(me.balance_minor||0);
           document.getElementById('balanceValue').textContent = rubFmt(balanceMinor);
         }
-        // берём реф-код с бэка или генерим локально
         const refCode = me?.ref_code || me?.referral_code || me?.code || encodeRefCode(MY_ID);
-
-        // строим КРАСИВУЮ ссылку: ?startapp=x<base64url>
         const payload = buildRefPayload(refCode);
         myRefLink = `https://t.me/${BOT_USERNAME.replace(/^@/,'')}?startapp=${payload}`;
         document.getElementById('refLink').value = myRefLink;
-
-        // кешируем для последующих покупок
-        localStorage.setItem('sbox_ref_code', refCode);
+        cacheRef(refCode);
       }catch(e){
-        // даже если /ref/me упал — делаем рабочую ссылку локально
+        // локальный фолбэк: всё равно покажем валидную ссылку
         const refCode = encodeRefCode(MY_ID);
         const payload = buildRefPayload(refCode);
         myRefLink = `https://t.me/${BOT_USERNAME.replace(/^@/,'')}?startapp=${payload}`;
         document.getElementById('refLink').value = myRefLink;
-        localStorage.setItem('sbox_ref_code', refCode);
+        cacheRef(refCode);
       }
 
       // Статистика
@@ -437,67 +379,128 @@
         setText('st_avg',    rubFmt(st.avg_bonus_minor ?? 0));
       }catch(e){}
 
-      // Рефералы
-      try{
-        const rr = await jget(`${API_BASE}/ref/referrals?tg_user_id=${encodeURIComponent(MY_ID)}&limit=200&offset=0`);
-        const body = document.getElementById('refsBody'); body.innerHTML='';
-        (rr.items||[]).forEach(it=>{
-          const tr = document.createElement('tr');
-          tr.innerHTML = `<td>${it.username ? '@'+it.username : it.tg_user_id}</td>
-                          <td>${it.orders_count ?? 0}</td>
-                          <td>${rubFmt(it.total_paid_minor ?? 0)}</td>`;
-          body.appendChild(tr);
-        });
-        if ((rr.items||[]).length===0){
-          const tr = document.createElement('tr'); tr.innerHTML = `<td colspan="3" class="muted">Пока нет рефералов</td>`;
-          body.appendChild(tr);
-        }
-      }catch(e){}
+      // ===== Рефералы (постранично) =====
+      const refsBody   = document.getElementById('refsBody');
+      const refsMore   = document.getElementById('refsMore');
+      let refsOffset   = 0;
+      const REFS_LIMIT = 50;
+      let refsDone     = false;
+      let refsLoading  = false;
 
-      // История начислений
-      try{
-        const lg = await jget(`${API_BASE}/ref/ledger?tg_user_id=${encodeURIComponent(MY_ID)}&limit=100&offset=0`);
-        const tb = document.getElementById('tbody'); tb.innerHTML='';
-        (lg.items||[]).forEach(it=>{
-          const tr = document.createElement('tr');
-          const dt = new Date(it.created_at);
-          tr.innerHTML = `<td class="muted">${dt.toLocaleString('ru-RU')}</td>
-                          <td>${rubFmt(it.amount_minor)}</td>
-                          <td><b>${rubFmt(it.bonus_minor)}</b></td>`;
-          tb.appendChild(tr);
-        });
-        if ((lg.items||[]).length===0){
-          const tr = document.createElement('tr'); tr.innerHTML = `<td colspan="3" class="muted">Начислений пока нет</td>`;
-          tb.appendChild(tr);
+      async function loadRefsPage(){
+        if (refsLoading || refsDone) return;
+        refsLoading = true;
+        refsMore.disabled = true;
+
+        try{
+          const url = `${API_BASE}/ref/referrals?tg_user_id=${encodeURIComponent(MY_ID)}&limit=${REFS_LIMIT}&offset=${refsOffset}`;
+          const rr  = await jget(url);
+
+          const items = Array.isArray(rr.items) ? rr.items : [];
+          if (refsOffset === 0 && items.length === 0){
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td colspan="3" class="muted">Пока нет рефералов</td>`;
+            refsBody.appendChild(tr);
+            refsDone = true;
+            refsMore.hidden = true;
+            return;
+          }
+
+          for (const it of items){
+            const tr  = document.createElement('tr');
+            const id  = (it.tg_user_id != null) ? it.tg_user_id : (it.user_id ?? it.id ?? '—');
+            tr.innerHTML = `<td>${id}</td>
+                            <td>${it.orders_count ?? 0}</td>
+                            <td>${rubFmt(it.total_paid_minor ?? 0)}</td>`;
+            refsBody.appendChild(tr);
+          }
+
+          refsOffset += items.length;
+          if (items.length < REFS_LIMIT){ refsDone = true; refsMore.hidden = true; }
+        }catch(e){
+          // мягкая деградация: показать кнопку повторить
+          tg?.showToast?.('Не удалось загрузить рефералов');
+        }finally{
+          refsLoading = false;
+          refsMore.disabled = false;
         }
-      }catch(e){}
+      }
+
+      refsMore?.addEventListener('click', loadRefsPage);
+
+      // ===== Начисления (постранично) =====
+      const ledgerBody   = document.getElementById('tbody');
+      const ledgerMore   = document.getElementById('ledgerMore');
+      let ledgerOffset   = 0;
+      const LEDGER_LIMIT = 50;
+      let ledgerDone     = false;
+      let ledgerLoading  = false;
+
+      async function loadLedgerPage(){
+        if (ledgerLoading || ledgerDone) return;
+        ledgerLoading = true;
+        ledgerMore.disabled = true;
+
+        try{
+          const url = `${API_BASE}/ref/ledger?tg_user_id=${encodeURIComponent(MY_ID)}&limit=${LEDGER_LIMIT}&offset=${ledgerOffset}`;
+          const lg  = await jget(url);
+
+          const items = Array.isArray(lg.items) ? lg.items : [];
+          if (ledgerOffset === 0 && items.length === 0){
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td colspan="3" class="muted">Начислений пока нет</td>`;
+            ledgerBody.appendChild(tr);
+            ledgerDone = true;
+            ledgerMore.hidden = true;
+            return;
+          }
+
+          for (const it of items){
+            const tr = document.createElement('tr');
+            const dt = new Date(it.created_at);
+            tr.innerHTML = `<td class="muted">${dt.toLocaleString('ru-RU')}</td>
+                            <td>${rubFmt(it.amount_minor)}</td>
+                            <td><b>${rubFmt(it.bonus_minor)}</b></td>`;
+            ledgerBody.appendChild(tr);
+          }
+
+          ledgerOffset += items.length;
+          if (items.length < LEDGER_LIMIT){ ledgerDone = true; ledgerMore.hidden = true; }
+        }catch(e){
+          tg?.showToast?.('Не удалось загрузить начисления');
+        }finally{
+          ledgerLoading = false;
+          ledgerMore.disabled = false;
+        }
+      }
+
+      ledgerMore?.addEventListener('click', loadLedgerPage);
+    await loadRefsPage();
+    await loadLedgerPage();
     }
 
-    // ====== РЕФ-ССЫЛКА (копир/шаринг) ======
+    // ====== Реф-ссылка: share / copy ======
     document.getElementById('shareBtn').addEventListener('click', () => {
-  const url = myRefLink || document.getElementById('refLink').value.trim();
-  if (!url) return;
+      const url = myRefLink || document.getElementById('refLink').value.trim();
+      if (!url) return;
+      const text = 'Покупай Звёзды, Premium и Подарки по лучшим ценам. Пополняй Steam по топ-курсу. Врывайся!';
+      const share = `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`;
+      if (tg?.openTelegramLink) tg.openTelegramLink(share);
+      else window.open(share, '_blank');
+    });
 
-  const text = 'Покупай звезды, premium и подарки по самым лучшим ценам. А так же, пополняй баланс Steam по лучшему курсу';
-  const share = `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`;
+    document.getElementById('copyBtn').addEventListener('click', async () => {
+      const url = myRefLink || document.getElementById('refLink').value.trim();
+      if (!url) return;
+      try {
+        await navigator.clipboard.writeText(url);
+        tg?.showToast?.('Ссылка скопирована');
+      } catch {
+        tg?.showAlert?.('Скопируйте ссылку вручную:\n' + url);
+      }
+    });
 
-  if (tg?.openTelegramLink) tg.openTelegramLink(share);
-  else window.open(share, '_blank');
-});
-
-document.getElementById('copyBtn').addEventListener('click', async () => {
-  const url = myRefLink || document.getElementById('refLink').value.trim();
-  if (!url) return;
-  try {
-    await navigator.clipboard.writeText(url);
-    tg?.showToast?.('Ссылка скопирована');
-  } catch {
-    // на iOS в Telegram clipboard может не сработать — показываем алерт с ссылкой
-    tg?.showAlert?.('Скопируйте ссылку вручную:\n' + url);
-  }
-});
-
-    // ====== МОДАЛКА ВЫВОДА ======
+    // ====== Вывод средств ======
     const wdModal = document.getElementById('wdModal');
     const openBtn = document.getElementById('withdrawOpen');
     const closeBtns = [document.getElementById('wdClose'), document.getElementById('wdCancel')];
@@ -508,22 +511,20 @@ document.getElementById('copyBtn').addEventListener('click', async () => {
     const form    = document.getElementById('wdForm');
     const sendBtn = document.getElementById('wdSend');
 
+    function openModal(m){ m.classList.add('is-open'); m.setAttribute('aria-hidden','false'); }
+    function closeModal(m){ m.classList.remove('is-open'); m.setAttribute('aria-hidden','true'); }
+
+    function isTonAddress(s){ const x=String(s||'').trim(); return /^(UQ|EQ|kQ|0:)/i.test(x) && x.length>=20; }
     function updateSubmitState(){
       const minor = toMinor(amtInp.value);
       const enough = minor !== null && minor >= MIN_WITHDRAW_MINOR && minor <= balanceMinor;
       sendBtn.disabled = !enough;
     }
 
-// обновляем при вводе суммы и открытии модалки
-amtInp.addEventListener('input', updateSubmitState);
-
-    function openModal(m){ m.classList.add('is-open'); m.setAttribute('aria-hidden','false'); }
-    function closeModal(m){ m.classList.remove('is-open'); m.setAttribute('aria-hidden','true'); }
-
     function openWd(){
       openModal(wdModal);
       errBox.textContent=''; amtInp.value=''; addrInp.value=''; addrInp.focus();
-      updateSubmitState(); // НОВОЕ
+      updateSubmitState();
     }
 
     openBtn.addEventListener('click', openWd);
@@ -533,65 +534,82 @@ amtInp.addEventListener('input', updateSubmitState);
 
     fillAll.addEventListener('click', ()=>{
       amtInp.value = (balanceMinor/100).toFixed(2).replace('.', ',');
-      // если баланс меньше «минималки» – сразу покажем причину
       errBox.textContent = (balanceMinor < MIN_WITHDRAW_MINOR) ? 'Минимальная сумма вывода — 5 000 ₽' : '';
-      updateSubmitState(); // НОВОЕ
+      updateSubmitState();
       amtInp.focus();
     });
-
-
-    function isTonAddress(s){ const x=String(s||'').trim(); return /^(UQ|EQ|kQ|0:)/i.test(x) && x.length>=20; 
-    }
+    amtInp.addEventListener('input', updateSubmitState);
 
     function validateWd(){
       errBox.textContent='';
       const minor = toMinor(amtInp.value);
       if (minor===null){ errBox.textContent='Укажите корректную сумму'; return null; }
       if (minor<=0){ errBox.textContent='Сумма должна быть больше 0'; return null; }
-
-      // НОВОЕ: проверка минимальной суммы
-      if (minor < MIN_WITHDRAW_MINOR){
-        errBox.textContent = 'Минимальная сумма вывода — 5 000 ₽';
-        return null;
-      }
-
+      if (minor < MIN_WITHDRAW_MINOR){ errBox.textContent = 'Минимальная сумма вывода — 5 000 ₽'; return null; }
       if (minor>balanceMinor){ errBox.textContent='Недостаточно средств на балансе'; return null; }
       if (!isTonAddress(addrInp.value)){ errBox.textContent='Укажите корректный TON-адрес'; return null; }
       return minor;
     }
 
-    form.addEventListener('submit', async ()=>{
-      const minor = validateWd(); if (minor===null) return;
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const minor = validateWd();
+      if (minor === null) return;
+
       const addr = addrInp.value.trim();
+      errBox.textContent = '';
       sendBtn.disabled = true;
-      try{
+
+      try {
         const r = await fetch(`${API_BASE}/ref/withdraw`, {
-          method:'POST', headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({ tg_user_id: MY_ID, amount_minor: minor, ton_address: addr })
+          method : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body   : JSON.stringify({
+            tg_user_id   : MY_ID,
+            amount_minor : minor,
+            ton_address  : addr
+          })
         });
-        if (!r.ok){
-          const err = await r.json().catch(()=>({detail:'Ошибка'}));
-          errBox.textContent = err.detail || 'Ошибка вывода'; return;
+
+        // бэк возвращает JSON и на ошибках — тоже, стараемся прочитать
+        const data = await r.json().catch(() => null);
+
+        // успех: ok:true
+        if (r.ok && data?.ok) {
+          // обновим баланс (бэк присылает balance_minor)
+          if (typeof data.balance_minor === 'number') {
+            balanceMinor = data.balance_minor;
+            const balEl = document.getElementById('balanceValue');
+            if (balEl) balEl.textContent = rubFmt(balanceMinor);
+          }
+
+          // мягкое подтверждение пользователю: ID заявки и статус от бэка
+          const pid = data.payout_id || '—';
+          const st  = data.status || 'requested';
+          tg?.showToast?.('Заявка на вывод отправлена в обработку');
+          tg?.showAlert?.(`Заявка создана\nID: ${pid}\nСтатус: ${st}`);
+
+          // закрываем модалку
+          closeModal(wdModal);
+          return;
         }
-        const data = await r.json();
-        balanceMinor = Number(data.balance_minor||0);
-        document.getElementById('balanceValue').textContent = rubFmt(balanceMinor);
 
-        const who = MY_USERNAME ? ('@'+MY_USERNAME) : ('id'+MY_ID);
-        const msg = `Пользователь запросил вывод\nАдрес: ${addr}\nСумма вывода: ${(minor/100).toFixed(2)} ₽\nПользователь: ${who}\nЗаявка: ${data.payout_id}`;
-        const supportLink = `https://t.me/${encodeURIComponent(SUPPORT_USERNAME)}?text=${encodeURIComponent(msg)}`;
-        if (tg?.openTelegramLink) tg.openTelegramLink(supportLink); else window.open(supportLink,'_blank');
+        // ошибки: показываем detail/сообщение бэка
+        const msg =
+          data?.detail ||
+          data?.error  ||
+          (r.status === 400 ? 'Недостаточно средств' : 'Не удалось создать заявку');
+        errBox.textContent = msg;
 
-        tg?.showToast?.('Заявка создана');
-        closeModal(wdModal);
-      }catch(e){
+      } catch (e) {
         errBox.textContent = 'Сеть недоступна, попробуйте позже';
       } finally {
         sendBtn.disabled = false;
       }
     });
 
-    // ====== МОДАЛКА СТАВОК ======
+    // ====== Ставки ======
     const ratesModal = document.getElementById('ratesModal');
     const ratesOpen = document.getElementById('ratesOpen');
     const ratesClose = document.getElementById('ratesClose');
@@ -608,69 +626,40 @@ amtInp.addEventListener('input', updateSubmitState);
     }
 
     async function loadRates(){
-  const urls = [
-    `${API_BASE}/ref/rates?tg_user_id=${encodeURIComponent(MY_ID)}`,
-    `${API_BASE}/ref/config?tg_user_id=${encodeURIComponent(MY_ID)}`,
-    `${API_BASE}/ref/settings?tg_user_id=${encodeURIComponent(MY_ID)}`,
-    `${API_BASE}/admin/ref/rates`,
-    `${API_BASE}/admin/ref/config`,
-  ];
+      let data = null;
+      try{
+        const r = await fetch(`${API_BASE}/ref/rates?tg_user_id=${encodeURIComponent(MY_ID)}`, { headers:{ 'Accept':'application/json' } });
+        if (r.ok) data = await r.json().catch(()=>null);
+      }catch{}
 
-  let data = null;
-  for (const u of urls){
-    try{
-      const r = await fetch(u, { headers:{ 'Accept':'application/json' } });
-      if (!r.ok) continue;
-      const d = await r.json().catch(()=>null);
-      if (d){ data = d; break; }
-    }catch{}
-  }
+      const map = {};
+      if (data){
+        if (Array.isArray(data.items)) data.items.forEach(it => map[it.product || it.key] = it.percent ?? it.value ?? it.rate);
+        else if (data.rates && typeof data.rates === 'object') Object.assign(map, data.rates);
+        else if (data.config?.ref?.rates) Object.assign(map, data.config.ref.rates);
+      }
 
-  const map = {};
-  if (data){
-    if (Array.isArray(data.items)) {
-      data.items.forEach(it => map[it.product || it.key] = it.percent ?? it.value ?? it.rate);
-    } else if (data.rates && typeof data.rates === 'object') {
-      Object.assign(map, data.rates);
-    } else if (data.config?.ref?.rates) {
-      Object.assign(map, data.config.ref.rates);
-    } else if (Array.isArray(data)) {
-      data.forEach(it => map[it.product || it.key] = it.percent ?? it.value ?? it.rate);
-    } else if (data.data?.rates) {
-      Object.assign(map, data.data.rates);
+      ratesGrid.innerHTML = '';
+      productList().forEach(p=>{
+        const val = map[p.key];
+        const card = document.createElement('div');
+        card.className = 'stat-card';
+        card.innerHTML = `<p class="stat-title">${p.title}</p><p class="stat-value">${val==null?'—':pctFmt(val)}</p>`;
+        ratesGrid.appendChild(card);
+      });
     }
-  }
 
-  const list = [
-    {key:'stars',   title:'Звёзды'},
-    {key:'gifts',   title:'Подарки'},
-    {key:'ton',     title:'TON'},
-    {key:'premium', title:'Premium'},
-    {key:'steam',   title:'Steam'},
-  ];
+    function openModal(m){ m.classList.add('is-open'); m.setAttribute('aria-hidden','false'); }
+    function closeModal(m){ m.classList.remove('is-open'); m.setAttribute('aria-hidden','true'); }
 
-  ratesGrid.innerHTML = '';
-  list.forEach(p=>{
-    const val = map[p.key];
-    const card = document.createElement('div');
-    card.className = 'stat-card';
-    card.innerHTML = `<p class="stat-title">${p.title}</p><p class="stat-value">${val==null?'—':pctFmt(val)}</p>`;
-    ratesGrid.appendChild(card);
-  });
-}
-
-    ratesOpen.addEventListener('click', async ()=>{
-      await loadRates();
-      openModal(ratesModal);
-    });
+    ratesOpen.addEventListener('click', async ()=>{ await loadRates(); openModal(ratesModal); });
     ratesClose.addEventListener('click', ()=>closeModal(ratesModal));
     ratesModal.addEventListener('click', (e)=>{ if (e.target===ratesModal) closeModal(ratesModal); });
     document.addEventListener('keydown', (e)=>{ if (e.key==='Escape' && ratesModal.classList.contains('is-open')) closeModal(ratesModal); });
 
-    // ====== СТАРТ ======
+    // GO
     init();
   })();
   </script>
 </body>
 </html>
-

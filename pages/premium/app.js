@@ -98,51 +98,83 @@
       });
     }
 
-    /* ---- пакеты: выбор срока и цены ---- */
-    function paintPrices(){
-      packBtns.forEach(btn => {
-        const priceEl = btn.querySelector('[data-price-el]');
-        const price   = Number(String(btn.dataset.price||'0').replace(',','.'));
-        const img     = btn.querySelector('.pack-icon img');
-        if (priceEl) priceEl.textContent = `${nfRub2.format(price)} ₽`;
-        if (img && btn.dataset.icon) img.src = btn.dataset.icon;
-      });
-    }
-    function selectPack(btn){
-      packBtns.forEach(b=>{
-        const active = (b===btn);
-        b.classList.toggle('is-selected', active);
-        b.setAttribute('aria-pressed', active?'true':'false');
-        const img = b.querySelector('.pack-icon img');
-        const src = active ? (b.dataset.iconActive||b.dataset.icon) : b.dataset.icon;
-        if (img && src) img.src = src;
-      });
-      refreshTotal();
-      reevaluate();
-    }
-    packsWrap?.addEventListener('click', e => {
-      const btn = e.target.closest('.pack-item');
-      if (!btn) return;
-      selectPack(btn);
-    });
-
-    function getSelectedPack(){
-      const btn = packBtns.find(b=>b.classList.contains('is-selected'));
+    /* ---------- работа с пакетами (вернули .is-active) ---------- */
+    function getSelectedPack() {
+      const btn = Array.from(document.querySelectorAll("#subsPacks .pack-item"))
+        .find(b => b.classList.contains("is-active"));
       if (!btn) return null;
-      const months = parseInt(btn.dataset.months||'0',10) || 0;
-      const price  = Number(String(btn.dataset.price||'0').replace(',','.')) || 0;
-      return { months, priceRub: price };
+
+      const months = parseInt(btn.dataset.months || "0", 10);
+      const price  = parseFloat(String(btn.dataset.price || "0").replace(",", "."));
+
+      return {
+        months: Number.isInteger(months) ? months : 0,
+        priceRub: Number.isFinite(price) ? price : 0,
+        el: btn
+      };
     }
 
-    /* ---- итог ₽ ---- */
-    function refreshTotal(){
-      const sel  = getSelectedPack();
-      const sum  = sel ? sel.priceRub : 0;
-      const minor= Math.round(sum*100);
-      if (totalValueEl){
-        totalValueEl.textContent = `${nfRub2.format(sum)} руб.`;
+    function refreshPackIcons() {
+      document.querySelectorAll("#subsPacks .pack-item").forEach(btn => {
+        const img = btn.querySelector(".pack-icon img");
+        if (!img) return;
+        const defIco = btn.dataset.icon || "";
+        const actIco = btn.dataset.iconActive || defIco;
+        img.src = btn.classList.contains("is-active") ? actIco : defIco;
+      });
+    }
+
+    function selectPack(btn) {
+      const all = Array.from(document.querySelectorAll("#subsPacks .pack-item"));
+      all.forEach(b => {
+        const active = b === btn;
+        b.classList.toggle("is-active", active);
+        b.setAttribute("aria-pressed", active ? "true" : "false");
+      });
+      refreshPackIcons();
+      refreshTotal();     // пересчитать «Итого»
+      refreshPayState();  // включить/выключить кнопки
+    }
+
+    function paintPackPrices() {
+      document.querySelectorAll("#subsPacks .pack-item").forEach(btn => {
+        const priceEl = btn.querySelector("[data-price-el]");
+        if (!priceEl) return;
+        const price = parseFloat(String(btn.dataset.price || "0").replace(",", "."));
+        priceEl.textContent = Number.isFinite(price)
+          ? new Intl.NumberFormat("ru-RU", { style:"currency", currency:"RUB", maximumFractionDigits:2 }).format(price)
+          : "—";
+      });
+    }
+
+    function initPacks() {
+      // иконки в начальное состояние
+      document.querySelectorAll("#subsPacks .pack-item").forEach(btn => {
+        const img = btn.querySelector(".pack-icon img");
+        if (img && btn.dataset.icon) img.src = btn.dataset.icon;
+        btn.setAttribute("aria-pressed", btn.classList.contains("is-active") ? "true" : "false");
+        // обработчик выбора
+        btn.addEventListener("click", () => selectPack(btn));
+      });
+
+      paintPackPrices();
+      refreshPackIcons();
+    }
+
+    function refreshTotal() {
+      const sel = getSelectedPack();
+      const priceRub = sel ? sel.priceRub : 0;
+      const minor = Math.round(priceRub * 100);
+
+      const totalValueEl = document.querySelector("#totalValue");
+      if (totalValueEl) {
+        try {
+          totalValueEl.textContent = new Intl.NumberFormat("ru-RU", { style:"currency", currency:"RUB", maximumFractionDigits:2 }).format(priceRub);
+        } catch {
+          totalValueEl.textContent = `${(Math.round(priceRub*100)/100).toFixed(2)} руб.`;
+        }
         totalValueEl.dataset.amountMinor = String(minor);
-        totalValueEl.dataset.months      = String(sel?sel.months:0);
+        totalValueEl.dataset.months = String(sel ? sel.months : 0);
       }
     }
 

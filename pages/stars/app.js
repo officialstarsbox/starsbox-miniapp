@@ -1,262 +1,41 @@
-/* ========= REF (session-only, unified) ========= */
 (function () {
-  // если глобальный app.js уже дал getRefCode — не переопределяем
-  if (typeof window.getRefCode === 'function') return;
-
-  const KEY = 'sb_in_ref';
-  const RE  = /^[A-Z0-9]{3,32}$/;
-
-  function save(code){ try{ if(RE.test(code)) sessionStorage.setItem(KEY, code); }catch{} }
-  function load(){ try{ const v=sessionStorage.getItem(KEY); return RE.test(v||'')?v:null; }catch{ return null; } }
-
-  function parseInbound(){
-    const tg = window.Telegram?.WebApp;
-    let raw =
-      tg?.initDataUnsafe?.start_param ??
-      new URL(location.href).searchParams.get('startapp') ??
-      new URL(location.href).searchParams.get('start') ??
-      new URL(location.href).searchParams.get('ref') ??
-      null;
-    if(!raw) return null;
-    raw = String(raw).trim();
-    const m = raw.match(/^ref[:=_-]+([A-Za-z0-9]{3,32})$/i);
-    let code = m ? m[1] : (/^[A-Za-z0-9]{3,32}$/.test(raw) ? raw : null);
-    return code ? code.toUpperCase() : null;
-  }
-
-  const inbound = parseInbound();
-  if (inbound) save(inbound);
-  window.getRefCode = () => load();
-})();
-
-/* ========= UI / валидация ========= */
-(function () {
-  function ready(fn){
-    if (document.readyState !== 'loading') fn();
-    else document.addEventListener('DOMContentLoaded', fn, { once: true });
-  }
-  const $ = (s, r) => (r || document).querySelector(s);
-
-  function normalizeWithAt(raw){
-    const core = String(raw || '').replace(/@/g,'').replace(/[^a-zA-Z0-9_]/g,'').slice(0,32);
-    return core ? '@' + core : '';
-  }
-
-  function getSelfUsername(){
-    const tg = window.Telegram && window.Telegram.WebApp;
-    try { tg?.ready?.(); } catch {}
-    const u = tg?.initDataUnsafe?.user?.username;
-    if (u) return String(u).replace(/[^a-zA-Z0-9_]/g,'').slice(0,32);
-    try {
-      const q = new URLSearchParams(location.search).get('tg_username');
-      return q ? String(q).replace(/[^a-zA-Z0-9_]/g,'').slice(0,32) : null;
-    } catch { return null; }
-  }
-
-  ready(function () {
-    const usernameInput = $('#tgUsername');
-    if (usernameInput){
-      usernameInput.addEventListener('input', () => {
-        const v = usernameInput.value;
-        const nv = normalizeWithAt(v);
-        if (v !== nv){
-          usernameInput.value = nv;
-          try{ usernameInput.setSelectionRange(nv.length, nv.length); }catch{}
-        }
-      });
-      usernameInput.addEventListener('blur', () => { if (usernameInput.value === '@') usernameInput.value = ''; });
-      usernameInput.addEventListener('keydown', e => { if (e.key === 'Enter'){ e.preventDefault(); usernameInput.blur(); } });
-    }
-
-    const starsAmount = $('#starsAmount');
-    if (starsAmount){
-      const digitsOnly = s => String(s || '').replace(/\D+/g, '');
-      starsAmount.addEventListener('input', () => {
-        const v = starsAmount.value;
-        const nv = digitsOnly(v).slice(0,5); // до 20000 → 5 знаков
-        if (v !== nv){
-          starsAmount.value = nv;
-          try{ starsAmount.setSelectionRange(nv.length, nv.length); }catch{}
-        }
-        updateTotal();
-      });
-      starsAmount.addEventListener('beforeinput', e => { if (e.inputType === 'insertText' && /\D/.test(e.data)) e.preventDefault(); });
-      starsAmount.addEventListener('keydown', e => { if (e.key === 'Enter'){ e.preventDefault(); starsAmount.blur(); } });
-    }
-
-    // Пакеты
-    const packsList   = $('#packsList');
-    const packsToggle = $('#packsToggle');
-    let activePackEl  = null;
-    let suppressClear = false;
-
-    if (packsList){
-      packsList.querySelectorAll('.pack-item').forEach(btn => {
-        const img  = btn.querySelector('.pack-icon img');
-        const icon = btn.getAttribute('data-icon');
-        if (img && icon) img.src = icon;
-      });
-    }
-
-    packsToggle?.addEventListener('click', () => {
-      const collapsed = packsList.getAttribute('data-collapsed') === 'true';
-      packsList.setAttribute('data-collapsed', collapsed ? 'false' : 'true');
-      packsToggle.textContent = collapsed ? 'Свернуть список пакетов' : 'Показать все пакеты';
-    });
-
-    packsList?.addEventListener('click', (e) => {
-      const btn = e.target.closest('.pack-item');
-      if (!btn) return;
-
-      if (activePackEl && activePackEl !== btn){
-        activePackEl.classList.remove('is-active');
-        const oldImg  = activePackEl.querySelector('.pack-icon img');
-        const oldIcon = activePackEl.getAttribute('data-icon');
-        if (oldImg && oldIcon) oldImg.src = oldIcon;
-      }
-
-      const isActive = btn.classList.toggle('is-active');
-      const img = btn.querySelector('.pack-icon img');
-
-      if (isActive){
-        activePackEl = btn;
-        const act = btn.getAttribute('data-icon-active');
-        if (img && act) img.src = act;
-
-        const count = String(btn.getAttribute('data-stars') || '').replace(/\D+/g, '');
-        if (count && starsAmount){
-          suppressClear = true;
-          starsAmount.value = count;
-          starsAmount.dispatchEvent(new Event('input', { bubbles: true }));
-          queueMicrotask(() => { suppressClear = false; });
-        }
-      } else {
-        activePackEl = null;
-        const def = btn.getAttribute('data-icon');
-        if (img && def) img.src = def;
-      }
-    });
-
-    starsAmount?.addEventListener('input', () => {
-      if (suppressClear) return;
-      if (!activePackEl) return;
-      const img = activePackEl.querySelector('.pack-icon img');
-      const def = activePackEl.getAttribute('data-icon');
-      activePackEl.classList.remove('is-active');
-      if (img && def) img.src = def;
-      activePackEl = null;
-    });
-
-    // Итог
-    const STARS_MIN = 50;
-    const STARS_MAX = 20000;
-
-    const nfRub2 = new Intl.NumberFormat('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-    const totalCard  = document.getElementById('totalCard');
-    const totalValue = document.getElementById('totalValue');
-    const starsEl    = document.getElementById('starsAmount');
-    const payButtons = Array.from(document.querySelectorAll('#paySbpBtn, #payCryptoBtn'));
-
-    function setPayEnabled(on){
-      payButtons.forEach(btn => {
-        if (!btn) return;
-        btn.disabled = !on;
-        btn.classList.toggle('is-disabled', !on);
-        btn.setAttribute('aria-disabled', String(!on));
-      });
-    }
-
-    function getStarRate(){
-      const fromWin  = Number(window.STAR_RATE);
-      if (!isNaN(fromWin) && fromWin > 0) return fromWin;
-      const fromAttr = Number(totalCard?.dataset?.rate);
-      if (!isNaN(fromAttr) && fromAttr > 0) return fromAttr;
-      return 1.7;
-    }
-
-    function hasValidRecipient(){
-      const v = (document.getElementById('tgUsername')?.value || '').trim();
-      return /^@[A-Za-z0-9_]{1,32}$/.test(v);
-    }
-
-    function updateTotal(){
-      const qty = Number((starsEl?.value || '').replace(/\D+/g, ''));
-      const inRange = qty >= STARS_MIN && qty <= STARS_MAX;
-
-      if (!inRange){
-        if (totalValue) totalValue.textContent = '0';
-        setPayEnabled(false);
-        return;
-      }
-
-      const sum = qty * getStarRate();
-      if (totalValue) totalValue.textContent = `${nfRub2.format(sum)} руб.`;
-
-      const canPay = sum > 0 && hasValidRecipient();
-      setPayEnabled(canPay);
-    }
-
-    starsEl?.addEventListener('input', updateTotal);
-    document.getElementById('tgUsername')?.addEventListener('input', updateTotal);
-
-    setPayEnabled(false);
-    updateTotal();
-
-    const buySelfBtn = $('#buyForMeBtn') || $('#buySelfBtn');
-    if (buySelfBtn && usernameInput){
-      buySelfBtn.addEventListener('click', () => {
-        const me = getSelfUsername();
-        if (!me){
-          window.Telegram?.WebApp?.showToast?.('В вашем профиле Telegram не указан username');
-          return;
-        }
-        usernameInput.value = '@' + me;
-        usernameInput.dispatchEvent(new Event('input', { bubbles: true }));
-        usernameInput.blur();
-      });
-    }
-
-    function blurIfOutside(e){
-      const ae = document.activeElement;
-      if (!ae) return;
-      const isInput = ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA';
-      if (!isInput) return;
-      if (ae.contains(e.target)) return;
-      ae.blur();
-    }
-    document.addEventListener('pointerdown', blurIfOutside, { capture: true });
-    document.addEventListener('touchstart',  blurIfOutside, { capture: true });
-  });
-})();
-
-/* ========= Stars: фронт ↔ бэк ========= */
-(function () {
-  const API_BASE = "https://api.starsbox.org";
-  const PRODUCT = "stars";
-  const CURRENCY = "RUB";
+  // ===== Константы =====
+  const API_BASE  = "https://api.starsbox.org";
+  const PRODUCT   = "stars";
+  const CURRENCY  = "RUB";
   const MIN_STARS = 50;
   const MAX_STARS = 20000;
 
-  const $  = (sel) => document.querySelector(sel);
-  const tg = window.Telegram?.WebApp || null;
+  // ===== Telegram SDK =====
+  const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
+  try { tg?.ready?.(); } catch {}
+
+  // ===== Элементы =====
+  const $  = (s) => document.querySelector(s);
+  const $$ = (s) => Array.from(document.querySelectorAll(s));
 
   const usernameInput = $("#tgUsername");
   const amountInput   = $("#starsAmount");
+
   const totalCard     = $("#totalCard");
   const totalValue    = $("#totalValue");
+
+  const packsList     = $("#packsList");
+  const packsToggle   = $("#packsToggle");
   const paySbpBtn     = $("#paySbpBtn");
   const payCryptoBtn  = $("#payCryptoBtn");
+  const buyForMeBtn   = $("#buyForMeBtn");
 
+  // Ставка ₽ за 1 звезду (из data-rate или window.STAR_RATE)
   const RATE = (() => {
-    const raw = totalCard?.dataset?.rate || "1";
-    const v = parseFloat(String(raw).replace(",", "."));
-    return Number.isFinite(v) ? v : 1;
+    const fromWin  = Number(window.STAR_RATE);
+    if (Number.isFinite(fromWin) && fromWin > 0) return fromWin;
+    const fromAttr = Number(totalCard?.dataset?.rate);
+    if (Number.isFinite(fromAttr) && fromAttr > 0) return fromAttr;
+    return 1.7;
   })();
 
-  const THANKS_SUCCESS = window.PAY_SUCCESS_URL;
-  const THANKS_FAIL    = window.PAY_FAIL_URL;
-
+  // ===== Утилиты =====
   const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
 
   function normalizeUsername(v) {
@@ -269,91 +48,220 @@
   }
 
   function getQty() {
-    const raw = amountInput?.value || "";
-    const onlyDigits = raw.replace(/[^\d]/g, "");
-    const n = parseInt(onlyDigits, 10);
-    if (!Number.isFinite(n)) return 0;
-    return clamp(n, MIN_STARS, MAX_STARS);
+    const raw = (amountInput?.value || "").replace(/[^\d]/g, "");
+    if (!raw) return 0;
+    return clamp(parseInt(raw, 10) || 0, MIN_STARS, MAX_STARS);
   }
 
-  function updateTotal() {
-    const qty = getQty();
-    const amountRub = qty * RATE;
-    const amountMinor = Math.round(amountRub * 100);
-    if (totalValue){
-      try {
-        totalValue.textContent = qty
-          ? new Intl.NumberFormat("ru-RU", { style: "currency", currency: "RUB", maximumFractionDigits: 2 }).format(amountRub)
-          : "0,00 руб.";
-      } catch {
-        totalValue.textContent = qty ? `${amountRub.toFixed(2)} руб.` : "0,00 руб.";
-      }
-      totalValue.dataset.amountMinor = String(amountMinor);
-      totalValue.dataset.qty = String(qty);
+  function setQty(n) {
+    const v = clamp(Number(n) || 0, MIN_STARS, MAX_STARS);
+    if (amountInput) {
+      amountInput.value = v ? String(v) : "";
     }
   }
 
-  function setLoading(is) {
-    [paySbpBtn, payCryptoBtn].forEach((b) => {
-      if (!b) return;
-      b.disabled = !!is;
-      b.classList.toggle("is-loading", !!is);
-      b.setAttribute('aria-disabled', String(!!is));
-    });
+  function formatRub(num) {
+    try {
+      return new Intl.NumberFormat("ru-RU", {
+        style: "currency",
+        currency: "RUB",
+        maximumFractionDigits: 2
+      }).format(num);
+    } catch {
+      return `${(Math.round(num * 100) / 100).toFixed(2)} руб.`;
+    }
   }
 
+  // Открыть ссылку приоритетно внутри мини-аппа
   function openLink(url) {
     if (!url) return;
-    if (typeof window.openInsideTelegram === 'function') {
+    if (typeof window.openInsideTelegram === "function") {
       try { window.openInsideTelegram(url); return; } catch {}
     }
     if (tg && typeof tg.openLink === "function") {
       try { tg.openLink(url); return; } catch {}
     }
-    window.location.href = url;
+    location.href = url;
   }
 
+  // Опциональный реф-код (бэк всё равно умеет связывать по actor_tg_id)
+  function readRefCode() {
+    try { return typeof window.getRefCode === "function" ? window.getRefCode() : null; } catch { return null; }
+  }
+
+  // ==== Единый пересчёт UI ====
+  function updateUI() {
+    const qty = getQty();
+    const amountRub   = qty * RATE;
+    const amountMinor = Math.round(amountRub * 100);
+
+    // Итог
+    if (totalValue) {
+      totalValue.textContent = qty ? formatRub(amountRub) : "0,00 руб.";
+    }
+
+    // Включение/выключение кнопок
+    const uOk = /^@[A-Za-z0-9_]{1,32}$/.test((usernameInput?.value || "").trim());
+    const qOk = qty >= MIN_STARS && qty <= MAX_STARS;
+    const enable = uOk && qOk && amountMinor > 0;
+
+    [paySbpBtn, payCryptoBtn].forEach(b => {
+      if (!b) return;
+      b.disabled = !enable;
+      b.setAttribute("aria-disabled", String(!enable));
+      b.classList.toggle("is-disabled", !enable);
+    });
+  }
+
+  function setLoading(is) {
+    [paySbpBtn, payCryptoBtn, packsToggle].forEach((b) => {
+      if (!b) return;
+      b.disabled = !!is;
+      b.classList.toggle("is-loading", !!is);
+      b.setAttribute("aria-disabled", String(!!is));
+    });
+  }
+
+  // ==== Пакеты ====
+  function initPacks() {
+    if (!packsList) return;
+
+    // Проставим иконки
+    $$(".pack-item", packsList).forEach(btn => {
+      const img  = btn.querySelector(".pack-icon img");
+      const icon = btn.dataset.icon;
+      if (img && icon) img.src = icon;
+    });
+
+    function selectPack(btn) {
+      const btns = $$(".pack-item", packsList);
+      btns.forEach(b => {
+        const active = b === btn;
+        b.classList.toggle("is-active", active);
+        b.setAttribute("aria-pressed", active ? "true" : "false");
+        const img = b.querySelector(".pack-icon img");
+        const defIco = b.dataset.icon || "";
+        const actIco = b.dataset.iconActive || defIco;
+        if (img) img.src = active ? actIco : defIco;
+      });
+    }
+
+    packsList.addEventListener("click", (e) => {
+      const btn = e.target.closest(".pack-item");
+      if (!btn) return;
+      selectPack(btn);
+      const stars = parseInt(btn.dataset.stars || "0", 10) || 0;
+      if (stars) setQty(stars);
+      updateUI();
+    });
+
+    packsToggle?.addEventListener("click", () => {
+      const collapsed = packsList.getAttribute("data-collapsed") === "true";
+      packsList.setAttribute("data-collapsed", collapsed ? "false" : "true");
+      packsToggle.textContent = collapsed ? "Свернуть список пакетов" : "Показать все пакеты";
+    });
+  }
+
+  // ==== Prefill: купить себе ====
+  function initBuyForMe() {
+    if (!buyForMeBtn || !usernameInput) return;
+    buyForMeBtn.addEventListener("click", () => {
+      let u = "";
+      try {
+        const tgUser = tg?.initDataUnsafe?.user;
+        if (tgUser?.username) u = "@" + tgUser.username;
+      } catch {}
+      if (!u) {
+        const url = new URL(location.href);
+        const qU = url.searchParams.get("u");
+        if (qU) u = normalizeUsername(qU);
+      }
+      if (!u) {
+        alert("Не удалось определить ваш username из Telegram. Введите его вручную (например, @username).");
+        usernameInput.focus();
+        return;
+      }
+      usernameInput.value = u;
+      updateUI();
+    });
+  }
+
+  // ==== Инпуты ====
+  function initInputs() {
+    if (amountInput) {
+      amountInput.addEventListener("input", () => {
+        const digits = amountInput.value.replace(/[^\d]/g, "").slice(0, 5); // до 20000
+        if (amountInput.value !== digits) {
+          amountInput.value = digits;
+          try { amountInput.setSelectionRange(digits.length, digits.length); } catch {}
+        }
+        updateUI();
+      });
+      amountInput.addEventListener("blur", () => { setQty(getQty()); updateUI(); });
+      amountInput.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); amountInput.blur(); } });
+    }
+
+    if (usernameInput) {
+      usernameInput.addEventListener("input",  () => { updateUI(); });
+      usernameInput.addEventListener("blur",   () => { usernameInput.value = normalizeUsername(usernameInput.value); updateUI(); });
+      usernameInput.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); usernameInput.blur(); } });
+    }
+
+    // Сворачиваем клавиатуру по тапу вне поля
+    function blurIfOutside(e){
+      const ae = document.activeElement;
+      if (!ae) return;
+      const isInput = ae.tagName === "INPUT" || ae.tagName === "TEXTAREA";
+      if (!isInput) return;
+      if (ae.contains(e.target)) return;
+      ae.blur();
+    }
+    document.addEventListener("pointerdown", blurIfOutside, { capture: true });
+    document.addEventListener("touchstart",  blurIfOutside, { capture: true });
+  }
+
+  // ==== Оплата ====
   async function initiatePayment(provider) {
     try {
       setLoading(true);
 
       const username = normalizeUsername(usernameInput?.value || "");
-      if (!username || !/^@[A-Za-z0-9_]{1,32}$/.test(username)) {
-        alert("Укажите корректный username получателя (например, @username).");
+      if (!username) {
+        alert("Укажите username получателя (например, @username).");
         return;
       }
 
+      // свежий расчёт, НЕ через dataset
       const qty = getQty();
-      if (!qty || qty < MIN_STARS || qty > MAX_STARS) {
+      if (!(qty >= MIN_STARS && qty <= MAX_STARS)) {
         alert(`Укажите количество звёзд от ${MIN_STARS} до ${MAX_STARS}.`);
         return;
       }
-
-      const amountMinor = Number(totalValue?.dataset?.amountMinor || "0");
-      if (!Number.isInteger(amountMinor) || amountMinor <= 0) {
+      const amountRub   = qty * RATE;
+      const amountMinor = Math.round(amountRub * 100);
+      if (amountMinor <= 0) {
         alert("Сумма к оплате не рассчитана. Попробуйте выбрать пакет или ввести количество заново.");
         return;
       }
 
       const payload = {
-        provider,                  // "wata" | "heleket"
-        product: PRODUCT,          // "stars"
-        username,                  // "@username"
-        qty,                       // число звёзд
-        amount_minor: amountMinor, // копейки
-        currency: CURRENCY,        // "RUB"
+        provider,                 // "wata" | "heleket"
+        product: PRODUCT,         // "stars"
+        username,                 // "@username"
+        qty,                      // штук звёзд
+        amount_minor: amountMinor,
+        currency: CURRENCY,
 
-        // реф-код только если есть (session-only)
-        ref_code: (window.getRefCode && window.getRefCode()) || undefined,
+        // рефералка (если есть) + кто платит
+        ref_code: readRefCode(),
+        actor_tg_id: tg?.initDataUnsafe?.user?.id || null,
 
-        // плательщик для write-once привязки
-        actor_tg_id: tg?.initDataUnsafe?.user?.id || undefined,
-
-        // возврат в мини-апп (оба варианта имён — для совместимости)
-        success_url: THANKS_SUCCESS,
-        fail_url:    THANKS_FAIL,
-        successUrl:  THANKS_SUCCESS,
-        returnUrl:   THANKS_FAIL
+        // URL возврата в мини-апп
+        success_url: window.PAY_SUCCESS_URL,
+        fail_url:    window.PAY_FAIL_URL,
+        // на всякий случай в camelCase тоже
+        successUrl:  window.PAY_SUCCESS_URL,
+        returnUrl:   window.PAY_FAIL_URL
       };
 
       const resp = await fetch(`${API_BASE}/pay/initiate`, {
@@ -367,7 +275,6 @@
         const txt = await resp.text().catch(() => "");
         throw new Error(`HTTP ${resp.status} ${resp.statusText} ${txt || ""}`.trim());
       }
-
       const data = await resp.json();
       if (!data || !data.ok || !data.payment_url) {
         throw new Error(`Некорректный ответ сервера: ${JSON.stringify(data)}`);
@@ -375,7 +282,7 @@
 
       openLink(data.payment_url);
     } catch (e) {
-      console.error("[pay/initiate] error:", e);
+      console.error("[pay/initiate stars] error:", e);
       alert(`Не удалось создать платёж.\n${e && e.message ? e.message : e}`);
     } finally {
       setLoading(false);
@@ -383,19 +290,19 @@
   }
 
   function initPayButtons() {
-    paySbpBtn?.addEventListener("click", () => initiatePayment("wata"));
-    payCryptoBtn?.addEventListener("click", () => initiatePayment("heleket"));
+    paySbpBtn   && paySbpBtn.addEventListener("click", () => initiatePayment("wata"));
+    payCryptoBtn&& payCryptoBtn.addEventListener("click", () => initiatePayment("heleket"));
   }
 
+  // ==== Инициализация ====
   function init() {
-    try { tg?.ready?.(); } catch {}
-    updateTotal();
+    initPacks();
+    initBuyForMe();
+    initInputs();
     initPayButtons();
+    updateUI(); // первичный рендер: 0 ₽ и disabled
   }
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", init);
-  } else {
-    init();
-  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
+  else init();
 })();

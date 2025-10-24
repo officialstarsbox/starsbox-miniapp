@@ -26,6 +26,10 @@
   const payCryptoBtn  = $("#payCryptoBtn");
   const buyForMeBtn   = $("#buyForMeBtn");
 
+  // === состояние выбора пакета (нужно, чтобы снимать выбор при ручном вводе) ===
+  let activePackEl = null;
+  let suppressClear = false; // true, когда мы программно подставляем количество из пакета
+
   // Ставка ₽ за 1 звезду (из data-rate или window.STAR_RATE)
   const RATE = (() => {
     const fromWin  = Number(window.STAR_RATE);
@@ -133,7 +137,7 @@
       if (img && icon) img.src = icon;
     });
 
-    function selectPack(btn) {
+    function paintSelection(btn) {
       const btns = $$(".pack-item", packsList);
       btns.forEach(b => {
         const active = b === btn;
@@ -144,22 +148,44 @@
         const actIco = b.dataset.iconActive || defIco;
         if (img) img.src = active ? actIco : defIco;
       });
+      activePackEl = btn || null;
     }
 
+    function clearSelectedPack() {
+      if (!activePackEl) return;
+      const img = activePackEl.querySelector(".pack-icon img");
+      const def = activePackEl.dataset.icon || "";
+      activePackEl.classList.remove("is-active","is-selected");
+      activePackEl.setAttribute("aria-pressed","false");
+      if (img) img.src = def;
+      activePackEl = null;
+    }
+
+    // выбор пакета → подсветка и программная подстановка количества
     packsList.addEventListener("click", (e) => {
       const btn = e.target.closest(".pack-item");
       if (!btn) return;
-      selectPack(btn);
+
+      paintSelection(btn);
+
       const stars = parseInt(btn.dataset.stars || "0", 10) || 0;
-      if (stars) setQty(stars);
+      if (stars) {
+        suppressClear = true;     // чтобы обработчик инпута не снял выбор
+        setQty(stars);
+        queueMicrotask(() => { suppressClear = false; });
+      }
       updateUI();
     });
 
+    // раскрывашка списка пакетов
     packsToggle?.addEventListener("click", () => {
       const collapsed = packsList.getAttribute("data-collapsed") === "true";
       packsList.setAttribute("data-collapsed", collapsed ? "false" : "true");
       packsToggle.textContent = collapsed ? "Свернуть список пакетов" : "Показать все пакеты";
     });
+
+    // экспортируем очистку для использования в input-обработчике
+    initPacks.clearSelectedPack = clearSelectedPack;
   }
 
   // ==== Prefill: купить себе ====
@@ -194,6 +220,10 @@
         if (amountInput.value !== digits) {
           amountInput.value = digits;
           try { amountInput.setSelectionRange(digits.length, digits.length); } catch {}
+        }
+        // если пользователь вводит руками — сбросить выбранный пакет
+        if (!suppressClear && typeof initPacks.clearSelectedPack === "function") {
+          initPacks.clearSelectedPack();
         }
         updateUI();
       });

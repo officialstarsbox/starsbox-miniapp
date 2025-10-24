@@ -1,127 +1,108 @@
-/* ========= REF BOOTSTRAP (polyfill-only) ========= */
+/* ========= REF (inbound, session-only, new format) ========= */
 (function () {
-  // если глобальный app.js уже дал getRefCode — выходим и не трогаем ничего
+  // если глобальный app.js уже определил getRefCode — не переопределяем
   if (typeof window.getRefCode === 'function') return;
 
-  const KEY = "sb_ref_code"; // унифицируем ключ с app.js
-  const TTL_MS = 1000 * 60 * 60 * 24 * 365; // 1 год, как в app.js
-  const REF_RE = /^r[0-9a-z]{1,31}$/;       // тот же формат, что на бэке
+  const KEY = 'sb_in_ref';
+  // допустим A–Z0–9 длиной 3..32 (твой бэк сейчас принимает такие)
+  const RE = /^[A-Z0-9]{3,32}$/;
 
-  function save(rc){
-    try{
-      if (!REF_RE.test(String(rc||'').toLowerCase())) return;
-      localStorage.setItem(KEY, String(rc).toLowerCase());
-      document.cookie = `sb_ref=${String(rc).toLowerCase()}; Path=/; Max-Age=${60*60*24*365}; SameSite=Lax`;
-    }catch{}
+  function save(code) {
+    try {
+      if (!RE.test(code)) return;
+      sessionStorage.setItem(KEY, code);
+    } catch {}
   }
-  function read(){
-    try{
-      const ls = localStorage.getItem(KEY);
-      if (REF_RE.test(String(ls||''))) return String(ls).toLowerCase();
-      const m = document.cookie.match(/(?:^|;\s*)sb_ref=([^;]+)/);
-      if (m && REF_RE.test(m[1])) return m[1].toLowerCase();
-    }catch{}
-    return null;
+  function load() {
+    try {
+      const v = sessionStorage.getItem(KEY);
+      return RE.test(v || '') ? v : null;
+    } catch {
+      return null;
+    }
   }
+  function parseInbound() {
+    const tg = window.Telegram?.WebApp;
+    let raw =
+      tg?.initDataUnsafe?.start_param ??
+      new URL(location.href).searchParams.get('startapp') ??
+      new URL(location.href).searchParams.get('start') ??
+      new URL(location.href).searchParams.get('ref') ??
+      null;
 
-  function normalize(raw){
     if (!raw) return null;
-    let v = String(raw).trim().toLowerCase();
-    if (v.startsWith("ref:")) v = v.slice(4).trim();
-    if (v.startsWith("r:"))   v = v.slice(2).trim();
-    if (v.startsWith("r") && /^[0-9a-z]+$/.test(v.slice(1))) v = v; // уже норм
-    // итоговая проверка
-    return REF_RE.test(v) ? v : null;
+    raw = String(raw).trim();
+
+    // ожидаем формы "ref:CODE" или просто "CODE"
+    let code = null;
+    const m = raw.match(/^ref[:=_-]+([A-Za-z0-9]{3,32})$/i);
+    if (m) code = m[1];
+    else if (/^[A-Za-z0-9]{3,32}$/.test(raw)) code = raw;
+
+    return code ? code.toUpperCase() : null;
   }
 
-  function fromStartParam(){
-    try{
-      const tg = window.Telegram && window.Telegram.WebApp;
-      const sp = tg?.initDataUnsafe?.start_param;
-      return normalize(sp);
-    }catch{ return null; }
-  }
-  function fromUrl(){
-    try{
-      const q = new URLSearchParams(location.search);
-      const raw = q.get("ref") || q.get("rc") || q.get("startapp") || q.get("start_app");
-      return normalize(raw);
-    }catch{ return null; }
-  }
+  const inbound = parseInbound();
+  if (inbound) save(inbound);
 
-  const rc = fromStartParam() || fromUrl();
-  if (rc) save(rc);
-
-  // отдаём тот же API, что и app.js
-  window.getRefCode = () => read();
+  // публичный API: вернуть входящий код рефовода (если есть)
+  window.getRefCode = () => load();
 })();
 
-// Ничего сложного: включаем минимальную инициализацию.
-// Кнопка "назад" — это <a href="...">, JS тут не нужен.
-(function(){
-  function ready(fn){
-    if (document.readyState !== 'loading') fn();
-    else document.addEventListener('DOMContentLoaded', fn, { once: true });
-  }
-  ready(function(){
-    // сюда будем добавлять логику следующих секций TON-страницы
-  });
-})();
-
-(function(){
-  function ready(fn){
+/* ========= UI helpers (username, inputs) ========= */
+(function () {
+  function ready(fn) {
     if (document.readyState !== 'loading') fn();
     else document.addEventListener('DOMContentLoaded', fn, { once: true });
   }
 
-  // нормализация username: только латиница/цифры/_, @ всегда в начале
-  function normalizeWithAt(raw){
+  // нормализация username: @ + [A-Za-z0-9_]{1,32}
+  function normalizeWithAt(raw) {
     const core = String(raw || '')
       .replace(/@/g, '')
-      .replace(/[^a-zA-Z0-9_]/g, '')
+      .replace(/[^A-Za-z0-9_]/g, '')
       .slice(0, 32);
     return core ? '@' + core : '';
   }
 
-  // читаем @username из Telegram WebApp или из query (?tg_username=...)
-  function getSelfUsername(){
-    try{
-      const tg = window.Telegram && window.Telegram.WebApp;
-      tg?.ready?.();
-      const u = tg?.initDataUnsafe?.user?.username;
-      if (u) return String(u).replace(/[^a-zA-Z0-9_]/g,'').slice(0,32);
-    }catch{}
-    try{
+  function getSelfUsername() {
+    try {
+      const u = window.Telegram?.WebApp?.initDataUnsafe?.user?.username;
+      if (u) return String(u).replace(/[^A-Za-z0-9_]/g, '').slice(0, 32);
+    } catch {}
+    try {
       const q = new URLSearchParams(location.search).get('tg_username');
-      return q ? String(q).replace(/[^a-zA-Z0-9_]/g,'').slice(0,32) : null;
-    }catch{ return null; }
+      return q ? String(q).replace(/[^A-Za-z0-9_]/g, '').slice(0, 32) : null;
+    } catch {
+      return null;
+    }
   }
 
-  ready(function(){
+  ready(function () {
     const usernameInput = document.getElementById('tgUsername');
-    const buySelfBtn    = document.getElementById('buyForMeBtn');
+    const buySelfBtn = document.getElementById('buyForMeBtn');
 
-    if (usernameInput){
+    if (usernameInput) {
       usernameInput.addEventListener('input', () => {
-        const v  = usernameInput.value;
+        const v = usernameInput.value;
         const nv = normalizeWithAt(v);
-        if (v !== nv){
+        if (v !== nv) {
           usernameInput.value = nv;
-          try{ usernameInput.setSelectionRange(nv.length, nv.length); }catch(e){}
+          try { usernameInput.setSelectionRange(nv.length, nv.length); } catch {}
         }
       });
       usernameInput.addEventListener('blur', () => {
         if (usernameInput.value === '@') usernameInput.value = '';
       });
       usernameInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter'){ e.preventDefault(); usernameInput.blur(); }
+        if (e.key === 'Enter') { e.preventDefault(); usernameInput.blur(); }
       });
     }
 
-    if (buySelfBtn && usernameInput){
+    if (buySelfBtn && usernameInput) {
       buySelfBtn.addEventListener('click', () => {
         const me = getSelfUsername();
-        if (!me){
+        if (!me) {
           window.Telegram?.WebApp?.showToast?.('В вашем профиле Telegram не указан username');
           return;
         }
@@ -132,7 +113,7 @@
     }
 
     // свернуть клавиатуру по тапу вне полей
-    function blurIfOutside(e){
+    function blurIfOutside(e) {
       const ae = document.activeElement;
       if (!ae) return;
       const isInput = ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA';
@@ -141,58 +122,52 @@
       ae.blur();
     }
     document.addEventListener('pointerdown', blurIfOutside, { capture: true });
-    document.addEventListener('touchstart',  blurIfOutside, { capture: true });
+    document.addEventListener('touchstart', blurIfOutside, { capture: true });
   });
 })();
 
-// ===== Кол-во TON (1..300, только целые) =====
-(function(){
+/* ========= TON amount: 1..300 ========= */
+(function () {
   const tonAmount = document.getElementById('tonAmount');
   if (!tonAmount) return;
 
-  const digitsOnly = s => String(s || '').replace(/\D+/g, '');
+  const digitsOnly = (s) => String(s || '').replace(/\D+/g, '');
 
   function sanitize() {
     const raw = tonAmount.value;
-    let nv = digitsOnly(raw).slice(0, 3); // максимум 3 цифры
+    let nv = digitsOnly(raw).slice(0, 3);
 
-    if (nv === '') {                     // пусто — позволяем
+    if (nv === '') {
       tonAmount.value = '';
       return;
     }
-
     let n = Number(nv);
-    if (n > 300) n = 300;                // верхняя граница
-    if (n < 1)  {                         // не допускаем 0
+    if (n > 300) n = 300;
+    if (n < 1) {
       tonAmount.value = '';
       return;
     }
-
     nv = String(n);
-    if (tonAmount.value !== nv){
+    if (tonAmount.value !== nv) {
       tonAmount.value = nv;
-      try { tonAmount.setSelectionRange(nv.length, nv.length); } catch(e){}
+      try { tonAmount.setSelectionRange(nv.length, nv.length); } catch {}
     }
   }
 
   tonAmount.addEventListener('input', sanitize);
-
-  // мягко блокируем нецифровые символы
   tonAmount.addEventListener('beforeinput', (e) => {
     if (e.inputType === 'insertText' && /\D/.test(e.data)) e.preventDefault();
   });
-
-  // Enter => свернуть клавиатуру
   tonAmount.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter'){ e.preventDefault(); tonAmount.blur(); }
+    if (e.key === 'Enter') { e.preventDefault(); tonAmount.blur(); }
   });
 })();
 
-// ===== TON: Итого к оплате (1 TON = 300 ₽ по умолчанию) =====
-(function(){
-  const amountEl = document.getElementById('tonAmount');   // поле количества TON (1..300)
-  const totalEl  = document.getElementById('tonTotalValue');
-  const cardEl   = document.getElementById('tonTotalCard');
+/* ========= TON total (₽) ========= */
+(function () {
+  const amountEl = document.getElementById('tonAmount');
+  const totalEl = document.getElementById('tonTotalValue');
+  const cardEl = document.getElementById('tonTotalCard');
   if (!amountEl || !totalEl || !cardEl) return;
 
   const nfRub2 = new Intl.NumberFormat('ru-RU', {
@@ -200,17 +175,16 @@
     maximumFractionDigits: 2
   });
 
-  function getRate(){
+  function getRate() {
     const fromWin = Number(window.TON_RATE);
     if (!isNaN(fromWin) && fromWin > 0) return fromWin;
     const fromAttr = Number(cardEl.dataset.rate);
     if (!isNaN(fromAttr) && fromAttr > 0) return fromAttr;
-    return 300; // дефолт
+    return 300;
   }
 
-  function renderTotal(){
-    const qty = Number((amountEl.value || '').replace(/\D+/g, '')); // на всякий случай
-    // валидный диапазон как у поля: 1..300
+  function renderTotal() {
+    const qty = Number((amountEl.value || '').replace(/\D+/g, ''));
     if (!(qty >= 1 && qty <= 300)) {
       totalEl.textContent = `${nfRub2.format(0)} руб.`;
       return;
@@ -220,312 +194,203 @@
   }
 
   amountEl.addEventListener('input', renderTotal);
-  renderTotal(); // первичный вывод (0,00 руб.)
+  renderTotal();
 })();
 
-// ===== TON: активация платёжных кнопок по вводу username и количества TON =====
-(function(){
-  const usernameEl = document.getElementById('tgUsername');   // поле @username
-  const amountEl   = document.getElementById('tonAmount');     // поле кол-ва TON (1..300)
-  const totalEl    = document.getElementById('tonTotalValue'); // текст итога
-  const cardEl     = document.getElementById('tonTotalCard');  // секция с data-rate
-  const payBtns    = [document.getElementById('paySbpBtn'), document.getElementById('payCryptoBtn')].filter(Boolean);
-
+/* ========= enable/disable pay buttons ========= */
+(function () {
+  const usernameEl = document.getElementById('tgUsername');
+  const amountEl = document.getElementById('tonAmount');
+  const totalEl = document.getElementById('tonTotalValue');
+  const cardEl = document.getElementById('tonTotalCard');
+  const payBtns = [document.getElementById('paySbpBtn'), document.getElementById('payCryptoBtn')].filter(Boolean);
   if (!amountEl || !totalEl || !cardEl || payBtns.length === 0) return;
 
   const nfRub2 = new Intl.NumberFormat('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-  function getRate(){
-    const fromWin  = Number(window.TON_RATE);
+  function getRate() {
+    const fromWin = Number(window.TON_RATE);
     if (!isNaN(fromWin) && fromWin > 0) return fromWin;
     const fromAttr = Number(cardEl.dataset.rate);
     if (!isNaN(fromAttr) && fromAttr > 0) return fromAttr;
     return 300;
   }
 
-  function usernameValid(){
+  function usernameValid() {
     const v = (usernameEl?.value || '').trim();
-    return /^@[A-Za-z0-9_]{1,32}$/.test(v); // должен быть @ + 1..32 символа набора
+    return /^@[A-Za-z0-9_]{1,32}$/.test(v);
   }
 
-  function amountValid(){
+  function amountValid() {
     const n = Number((amountEl?.value || '').replace(/\D+/g, ''));
-    return (n >= 1 && n <= 300) ? n : null;
+    return n >= 1 && n <= 300 ? n : null;
   }
 
-  function setButtonsEnabled(on){
-    payBtns.forEach(b => {
+  function setButtonsEnabled(on) {
+    payBtns.forEach((b) => {
       b.disabled = !on;
       b.setAttribute('aria-disabled', String(!on));
     });
   }
 
-  function renderTotalAndButtons(){
+  function render() {
     const qty = amountValid();
     const sum = qty ? qty * getRate() : 0;
     totalEl.textContent = `${nfRub2.format(sum)} руб.`;
-
-    const enabled = usernameValid() && sum > 0;
-    setButtonsEnabled(enabled);
+    setButtonsEnabled(usernameValid() && sum > 0);
   }
 
-  usernameEl?.addEventListener('input', renderTotalAndButtons);
-  amountEl?.addEventListener('input',  renderTotalAndButtons);
-
-  // первичная инициализация
+  usernameEl?.addEventListener('input', render);
+  amountEl?.addEventListener('input', render);
   setButtonsEnabled(false);
-  renderTotalAndButtons();
+  render();
 })();
 
-/* ========= TON: фронт ↔ бэк ========= */
+/* ========= backend integration (initiate) ========= */
 (function () {
-  const API_BASE = "https://api.starsbox.org";
-  const PRODUCT = "ton";
-  const CURRENCY = "RUB";
+  const API_BASE = 'https://api.starsbox.org';
+  const PRODUCT = 'ton';
+  const CURRENCY = 'RUB';
   const MIN_TON = 1;
   const MAX_TON = 300;
 
-  // ✅ Настраиваем, куда вернуть пользователя после оплаты
-  const THANKS_SUCCESS = window.PAY_SUCCESS_URL;
-  const THANKS_FAIL    = window.PAY_FAIL_URL;
+  const THANKS_SUCCESS = window.PAY_SUCCESS_URL || (location.origin + '/pages/pay/success/');
+  const THANKS_FAIL    = window.PAY_FAIL_URL    || (location.origin + '/pages/pay/fail/');
 
-  const $ = (sel) => document.querySelector(sel);
+  const $ = (s) => document.querySelector(s);
+  const tg = window.Telegram?.WebApp || null;
 
-  const tg = (window.Telegram && window.Telegram.WebApp) ? window.Telegram.WebApp : null;
+  const usernameInput = $('#tgUsername');
+  const amountInput = $('#tonAmount');
+  const totalCard = $('#tonTotalCard');
+  const totalValue = $('#tonTotalValue');
+  const paySbpBtn = $('#paySbpBtn');
+  const payCryptoBtn = $('#payCryptoBtn');
 
-  // Элементы
-  const usernameInput = $("#tgUsername");
-  const amountInput = $("#tonAmount");
-  const totalCard = $("#tonTotalCard");
-  const totalValue = $("#tonTotalValue");
-  const paySbpBtn = $("#paySbpBtn");
-  const payCryptoBtn = $("#payCryptoBtn");
-  const buyForMeBtn = $("#buyForMeBtn");
-
-  // ₽ за 1 TON берём из data-rate у #tonTotalCard (например, 300)
   const RATE = (() => {
-    const raw = totalCard?.dataset?.rate || "1";
-    const v = parseFloat(String(raw).replace(",", "."));
+    const raw = totalCard?.dataset?.rate || '1';
+    const v = parseFloat(String(raw).replace(',', '.'));
     return Number.isFinite(v) ? v : 1;
   })();
 
-  // Утилиты
   const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
 
   function normalizeUsername(v) {
-    if (!v) return "";
+    if (!v) return '';
     let s = String(v).trim();
-    if (!s) return "";
-    if (s.startsWith("@")) return s;
-    if (/^[A-Za-z0-9_\.]+$/.test(s)) return "@" + s;
-    return s; // если странные символы — пусть бэк валидирует
-  }
-
-  function formatRub(num) {
-    try {
-      return new Intl.NumberFormat("ru-RU", { style: "currency", currency: "RUB", maximumFractionDigits: 2 }).format(num);
-    } catch {
-      return `${(Math.round(num * 100) / 100).toFixed(2)} руб.`;
-    }
+    if (!s) return '';
+    if (s.startsWith('@')) return s;
+    if (/^[A-Za-z0-9_]+$/.test(s)) return '@' + s;
+    return s;
   }
 
   function getQty() {
-    const raw = amountInput?.value || "";
-    const onlyDigits = raw.replace(/[^\d]/g, "");
-    const n = parseInt(onlyDigits, 10);
+    const raw = amountInput?.value || '';
+    const n = parseInt(raw.replace(/[^\d]/g, ''), 10);
     if (!Number.isFinite(n)) return 0;
     return clamp(n, MIN_TON, MAX_TON);
   }
 
-  function setQty(n) {
-    const v = clamp(Number(n) || 0, MIN_TON, MAX_TON);
-    amountInput.value = v ? String(v) : "";
-    updateTotal();
-  }
-
   function updateTotal() {
     const qty = getQty();
-    const amountRub = qty * RATE;                    // ₽
-    const amountMinor = Math.round(amountRub * 100); // копейки (целое)
-
-    totalValue.textContent = qty ? formatRub(amountRub) : "0,00 руб.";
+    const amountRub = qty * RATE;
+    const amountMinor = Math.round(amountRub * 100);
+    totalValue.textContent = qty ? new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', maximumFractionDigits: 2 }).format(amountRub) : '0,00 руб.';
     totalValue.dataset.amountMinor = String(amountMinor);
     totalValue.dataset.qty = String(qty);
-
-    // Включаем/выключаем кнопки оплаты по валидности
-    const uOk = !!normalizeUsername(usernameInput?.value || "");
-    const qOk = qty >= MIN_TON && qty <= MAX_TON;
-    const enable = uOk && qOk && amountMinor > 0;
-
-    [paySbpBtn, payCryptoBtn].forEach((b) => {
-      if (!b) return;
-      b.disabled = !enable;
-      b.classList.toggle("is-loading", false);
-      b.setAttribute("aria-disabled", String(!enable));
-    });
   }
 
   function setLoading(is) {
     [paySbpBtn, payCryptoBtn].forEach((b) => {
       if (!b) return;
       b.disabled = !!is;
-      b.classList.toggle("is-loading", !!is);
-      b.setAttribute("aria-disabled", String(!!is));
+      b.classList.toggle('is-loading', !!is);
+      b.setAttribute('aria-disabled', String(!!is));
     });
   }
 
-  // ✅ Открываем ссылки приоритетно внутри Telegram мини-аппа
   function openLink(url) {
     if (!url) return;
-    // 1) если на странице подключён /app.js с openInsideTelegram — используем его
-    if (typeof window.openInsideTelegram === "function") {
+    if (typeof window.openInsideTelegram === 'function') {
       try { window.openInsideTelegram(url); return; } catch {}
     }
-    // 2) иначе — напрямую через SDK
-    if (tg && typeof tg.openLink === "function") {
+    if (tg && typeof tg.openLink === 'function') {
       try { tg.openLink(url); return; } catch {}
     }
-    // 3) фолбэк — обычный переход
-    window.location.href = url;
+    location.href = url;
   }
 
   async function initiatePayment(provider) {
     try {
       setLoading(true);
 
-      const username = normalizeUsername(usernameInput?.value || "");
-      if (!username) {
-        alert("Укажите username получателя (например, @username).");
-        return;
-      }
+      const username = normalizeUsername(usernameInput?.value || '');
+      if (!username) throw new Error('Укажите username получателя (например, @username).');
 
       const qty = getQty();
-      if (!qty || qty < MIN_TON || qty > MAX_TON) {
-        alert(`Укажите количество TON от ${MIN_TON} до ${MAX_TON}.`);
-        return;
-      }
+      if (!qty || qty < MIN_TON || qty > MAX_TON) throw new Error(`Укажите количество TON от ${MIN_TON} до ${MAX_TON}.`);
 
-      const amountMinor = Number(totalValue.dataset.amountMinor || "0");
-      if (!Number.isInteger(amountMinor) || amountMinor <= 0) {
-        alert("Сумма к оплате не рассчитана. Введите количество заново.");
-        return;
-      }
+      const amountMinor = Number(totalValue.dataset.amountMinor || '0');
+      if (!Number.isInteger(amountMinor) || amountMinor <= 0) throw new Error('Сумма к оплате не рассчитана.');
 
-      // Бэк ожидает для TON: tg_username, ton_amount (+ общие поля)
       const payload = {
-        provider,                 // "wata" | "heleket"
-        product: PRODUCT,         // "ton"
-        tg_username: username,    // ОБЯЗАТЕЛЬНО для TON
-        ton_amount: qty,          // ОБЯЗАТЕЛЬНО для TON (целое количество TON)
-
-        // ниже — оставим для совместимости/логов
-        username,                 // дубль
-        qty,                      // дубль
+        provider,              // "wata" | "heleket"
+        product: PRODUCT,      // "ton"
+        tg_username: username, // для TON на бэке
+        ton_amount: qty,       // целые TON (бэк сам сконвертит в nanotons)
+        username,              // для логов
+        qty,
         amount_minor: amountMinor,
         currency: CURRENCY,
 
-        // 🔗 реф-код из localStorage/URL/TG start_param
-        ref_code: (window.getRefCode && window.getRefCode()) || null,
+        // 🔗 входящий код рефовода (если пришёл в сессию)
+        ref_code: (typeof window.getRefCode === 'function' ? window.getRefCode() : null) || undefined,
 
-        // 👤 кто платит (для «липкой» привязки на бэке)
-        actor_tg_id: tg?.initDataUnsafe?.user?.id || null,
+        // 👤 плательщик (для write-once binding на бэке)
+        actor_tg_id: tg?.initDataUnsafe?.user?.id || undefined,
 
-        // ✅ попросим провайдера вернуть пользователя внутрь мини-аппа
+        // возвраты
         success_url: THANKS_SUCCESS,
-        fail_url:    THANKS_FAIL
+        fail_url: THANKS_FAIL
       };
 
-      const resp = await fetch(`${API_BASE}/pay/initiate`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "omit",
+      const r = await fetch(`${API_BASE}/pay/initiate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'omit',
         body: JSON.stringify(payload)
       });
+      if (!r.ok) throw new Error(`HTTP ${r.status} ${r.statusText} ${await r.text().catch(()=> '')}`);
 
-      if (!resp.ok) {
-        const txt = await resp.text().catch(() => "");
-        throw new Error(`HTTP ${resp.status} ${resp.statusText} ${txt || ""}`.trim());
-      }
+      const d = await r.json();
+      if (!d?.ok || !d.payment_url) throw new Error(`Некорректный ответ сервера: ${JSON.stringify(d)}`);
 
-      const data = await resp.json();
-      if (!data || !data.ok || !data.payment_url) {
-        throw new Error(`Некорректный ответ сервера: ${JSON.stringify(data)}`);
-      }
-
-      openLink(data.payment_url);
+      openLink(d.payment_url);
     } catch (e) {
-      console.error("[pay/initiate ton] error:", e);
-      alert(`Не удалось создать платёж.\n${e && e.message ? e.message : e}`);
+      console.error('[pay/initiate ton] error:', e);
+      alert(e?.message || e);
     } finally {
       setLoading(false);
     }
   }
 
-  // Prefill: «купить себе»
-  function initBuyForMe() {
-    if (!buyForMeBtn || !usernameInput) return;
-    buyForMeBtn.addEventListener("click", () => {
-      let u = "";
-      try {
-        const tgUser = tg?.initDataUnsafe?.user;
-        if (tgUser?.username) u = "@" + tgUser.username;
-      } catch {}
-      if (!u) {
-        const url = new URL(window.location.href);
-        const qU = url.searchParams.get("u");
-        if (qU) u = normalizeUsername(qU);
-      }
-      if (!u) {
-        alert("Не удалось определить ваш username из Telegram. Введите его вручную (например, @username).");
-        usernameInput.focus();
-        return;
-      }
-      usernameInput.value = u;
-      updateTotal();
-    });
-  }
-
-  // Слушатели
-  function initInputs() {
-    if (amountInput) {
-      amountInput.addEventListener("input", () => {
-        amountInput.value = amountInput.value.replace(/[^\d]/g, "");
-        updateTotal();
-      });
-      amountInput.addEventListener("blur", () => {
-        setQty(getQty()); // зажать в диапазон при потере фокуса
-      });
-    }
-
-    if (usernameInput) {
-      usernameInput.addEventListener("blur", () => {
-        usernameInput.value = normalizeUsername(usernameInput.value);
-        updateTotal();
-      });
-      usernameInput.addEventListener("input", () => {
-        updateTotal();
-      });
-    }
-  }
-
-  // Кнопки оплаты
-  function initPayButtons() {
-    if (paySbpBtn)    paySbpBtn.addEventListener("click", () => initiatePayment("wata"));
-    if (payCryptoBtn) payCryptoBtn.addEventListener("click", () => initiatePayment("heleket"));
-  }
-
-  // Инициализация
   function init() {
-    try { tg && tg.ready && tg.ready(); } catch {}
-    initBuyForMe();
-    initInputs();
-    initPayButtons();
-    updateTotal(); // показать 0 ₽ и выставить disabled по состоянию
+    try { tg?.ready?.(); } catch {}
+    updateTotal();
+
+    const amountInput = document.getElementById('tonAmount');
+    const usernameInput = document.getElementById('tgUsername');
+    amountInput?.addEventListener('input', updateTotal);
+    usernameInput?.addEventListener('input', updateTotal);
+
+    document.getElementById('paySbpBtn')?.addEventListener('click', () => initiatePayment('wata'));
+    document.getElementById('payCryptoBtn')?.addEventListener('click', () => initiatePayment('heleket'));
   }
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", init);
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
   } else {
     init();
   }
 })();
+

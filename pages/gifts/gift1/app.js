@@ -25,10 +25,35 @@
   const payCryptoBtn  = $("#payCryptoBtn");
 
   // --- helpers ---
-  function normalizeWithAt(raw){
-    const core = String(raw||'').replace(/@/g,'').replace(/[^A-Za-z0-9_]/g,'').slice(0,32);
-    return core ? '@'+core : '';
+  function normalizeUsername(v) {
+    if (!v) return "";
+    let s = String(v).trim();
+    if (!s) return "";
+    if (s.startsWith("@")) return s;
+    if (/^[A-Za-z0-9_\.]+$/.test(s)) return "@" + s;
+    return s;
   }
+  // «жёсткая» фильтрация как на других страницах: только латиница/цифры/_ и автопрефикс @
+  function normalizeWithAt(raw){
+    const core = String(raw||"")
+      .replace(/@/g,"")
+      .replace(/[^A-Za-z0-9_]/g,"")
+      .slice(0,32);
+    return core ? ("@"+core) : "";
+  }
+  function getSelfUsername(){
+    try { tg?.ready?.(); } catch {}
+    try {
+      const u = tg?.initDataUnsafe?.user?.username;
+      if (u) return String(u).replace(/[^A-Za-z0-9_]/g,"").slice(0,32);
+    } catch {}
+    try {
+      const q = new URLSearchParams(location.search).get("tg_username");
+      if (q) return String(q).replace(/[^A-Za-z0-9_]/g,"").slice(0,32);
+    } catch {}
+    return null;
+  }
+
   function formatRub(num) {
     try {
       return new Intl.NumberFormat("ru-RU", { style: "currency", currency: "RUB", maximumFractionDigits: 2 }).format(num);
@@ -62,7 +87,6 @@
     return v ? String(v).trim() : null; // строкой, не Number()
   }
   function getPriceRub() {
-    // приоритет: #giftCard[data-price] -> #totalCard[data-price] -> текст внутри #totalValue
     let p = parseFloat(String(giftCard?.dataset?.price || "").replace(",", "."));
     if (!Number.isFinite(p) || p <= 0) {
       p = parseFloat(String(totalCard?.dataset?.price || "").replace(",", "."));
@@ -71,7 +95,7 @@
       const raw = (totalValueEl?.textContent || "").replace(/[^\d,.-]/g, "").replace(",", ".");
       p = parseFloat(raw);
     }
-    return Number.isFinite(p) && p > 0 ? p : 25; // дефолт 25 ₽, если совсем ничего
+    return Number.isFinite(p) && p > 0 ? p : 25;
   }
   function refreshTotal() {
     const rub = getPriceRub();
@@ -139,12 +163,8 @@
         currency: CURRENCY,
         gift_id,
         gift_text: buildGiftText(),
-
-        // рефералка + «кто платит»
         ref_code: refCode,
         actor_tg_id: actorId,
-
-        // возврат внутрь мини-аппа
         success_url: THANKS_SUCCESS,
         fail_url:    THANKS_FAIL
       };
@@ -176,9 +196,25 @@
 
   // --- UI init ---
   function initInputs() {
-    // username
-    usernameInput?.addEventListener("input", refreshPayState);
-    usernameInput?.addEventListener("blur",  () => { usernameInput.value = normalizeUsername(usernameInput.value); refreshPayState(); });
+    // username (жёсткая фильтрация + UX-правила)
+    if (usernameInput){
+      usernameInput.addEventListener("input", () => {
+        const v = normalizeWithAt(usernameInput.value);
+        if (v !== usernameInput.value){
+          usernameInput.value = v;
+          try { usernameInput.setSelectionRange(v.length, v.length); } catch {}
+        }
+        refreshPayState();
+      });
+      usernameInput.addEventListener("blur",  () => {
+        if (usernameInput.value === "@") usernameInput.value = "";
+        else usernameInput.value = normalizeWithAt(usernameInput.value);
+        refreshPayState();
+      });
+      usernameInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter"){ e.preventDefault(); usernameInput.blur(); }
+      });
+    }
 
     // sender/message (лимиты 24/91)
     const clamp = (s, max) => String(s || "").slice(0, max);
@@ -202,29 +238,30 @@
 
     // «купить себе»
     buyForMeBtn?.addEventListener("click", () => {
-      let u = "";
-      try { const tgu = tg?.initDataUnsafe?.user; if (tgu?.username) u = "@" + tgu.username; } catch {}
-      if (!u) {
-        const qU = new URL(window.location.href).searchParams.get("u");
-        if (qU) u = normalizeUsername(qU);
+      const me = getSelfUsername();
+      if (!me){
+        alert("В вашем профиле Telegram не указан username. Введите его вручную (например, @username).");
+        usernameInput?.focus();
+        return;
       }
-      if (!u) { alert("Не удалось определить ваш username из Telegram. Введите его вручную (например, @username)."); usernameInput?.focus(); return; }
-      usernameInput.value = u;
+      const v = normalizeWithAt("@"+me);
+      usernameInput.value = v;
       usernameInput.dispatchEvent(new Event("input", { bubbles: true }));
       usernameInput.blur();
     });
 
     // «указать мой юзернейм» в поле отправителя
     fillMyBtn?.addEventListener("click", () => {
-      let u = "";
-      try { const tgu = tg?.initDataUnsafe?.user; if (tgu?.username) u = "@" + tgu.username; } catch {}
-      if (!u) {
-        const qU = new URL(window.location.href).searchParams.get("me");
-        if (qU) u = normalizeUsername(qU);
+      const me = getSelfUsername();
+      if (!me){
+        alert("Не удалось взять ваш username из Telegram. Введите его вручную (например, @username).");
+        senderInput?.focus();
+        return;
       }
-      if (!u) { alert("Не удалось взять ваш username из Telegram. Введите его вручную (например, @username)."); senderInput?.focus(); return; }
-      senderInput.value = u;
-      refreshCounters(); refreshGiftDesc();
+      const v = "@"+me.replace(/[^A-Za-z0-9_]/g,"").slice(0,23); // @ займёт 1 символ
+      senderInput.value = v.slice(0,24);
+      senderInput.dispatchEvent(new Event("input", { bubbles: true }));
+      senderInput.blur();
     });
 
     // сворачивание клавиатуры по тапу вне полей
@@ -247,7 +284,6 @@
 
   function init() {
     try { tg?.ready?.(); tg?.expand?.(); } catch {}
-    // возможно, описание пришло через ?desc=
     const qDesc = new URLSearchParams(location.search).get("desc");
     if (qDesc) setGiftDescription(decodeURIComponent(qDesc));
 
@@ -263,5 +299,3 @@
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
   else init();
 })();
-
-

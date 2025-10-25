@@ -42,9 +42,22 @@
   // ===== Утилиты =====
   const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
 
+  function normalizeUsername(v) {
+    if (!v) return "";
+    let s = String(v).trim();
+    if (!s) return "";
+    if (s.startsWith("@")) return s;
+    if (/^[A-Za-z0-9_\.]+$/.test(s)) return "@" + s;
+    return s;
+  }
+
+  // === ДОБАВЛЕНО: строгая нормализация поля с автопрефиксом @ и запретом кириллицы ===
   function normalizeWithAt(raw){
-    const core = String(raw||'').replace(/@/g,'').replace(/[^A-Za-z0-9_]/g,'').slice(0,32);
-    return core ? '@'+core : '';
+    const core = String(raw||'')
+      .replace(/@/g,'')            // убираем любые @ внутри
+      .replace(/[^A-Za-z0-9_]/g,'') // только латиница/цифры/_
+      .slice(0,32);                 // максимум 32
+    return core ? '@' + core : '';
   }
 
   function getQty() {
@@ -228,9 +241,32 @@
     }
 
     if (usernameInput) {
-      usernameInput.addEventListener("input",  () => { updateUI(); });
-      usernameInput.addEventListener("blur",   () => { usernameInput.value = normalizeUsername(usernameInput.value); updateUI(); });
-      usernameInput.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); usernameInput.blur(); } });
+      // === ДОБАВЛЕНО: «живая» фильтрация и автопрефикс @ ===
+      usernameInput.addEventListener("input", () => {
+        const v = normalizeWithAt(usernameInput.value);
+        if (v !== usernameInput.value){
+          usernameInput.value = v;
+          try { usernameInput.setSelectionRange(v.length, v.length); } catch {}
+        }
+        updateUI();
+      });
+
+      // запрет плохих символов ещё до вставки
+      usernameInput.addEventListener("beforeinput", (e) => {
+        if (e.inputType === "insertText" && /[^A-Za-z0-9_@]/.test(e.data)) {
+          e.preventDefault();
+        }
+      });
+
+      usernameInput.addEventListener("blur", () => {
+        if (usernameInput.value === "@") usernameInput.value = "";
+        else usernameInput.value = normalizeWithAt(usernameInput.value);
+        updateUI();
+      });
+
+      usernameInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") { e.preventDefault(); usernameInput.blur(); }
+      });
     }
 
     // Сворачиваем клавиатуру по тапу вне поля

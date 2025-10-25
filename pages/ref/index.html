@@ -408,7 +408,7 @@
 
           for (const it of items){
             const tr  = document.createElement('tr');
-            const id  = (it.tg_user_id != null) ? it.tg_user_id : (it.user_id ?? it.id ?? '—');
+            const id  = (it.tg_user_id != null) ? it.tg_user_id : '—';
             tr.innerHTML = `<td>${id}</td>
                             <td>${it.orders_count ?? 0}</td>
                             <td>${rubFmt(it.total_paid_minor ?? 0)}</td>`;

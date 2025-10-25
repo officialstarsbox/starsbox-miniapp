@@ -1,6 +1,5 @@
 /* ========= REF (session-only, unified) ========= */
 (function () {
-  // если глобальный app.js уже дал getRefCode — не переопределяем
   if (typeof window.getRefCode === 'function') return;
 
   const KEY = 'sb_in_ref';
@@ -38,7 +37,6 @@
   const $  = (s, r) => (r||document).querySelector(s);
   const $$ = (s, r) => Array.from((r||document).querySelectorAll(s));
 
-  // нормализация username: только латиница/цифры/_, лидирующий '@'
   function normalizeWithAt(raw){
     const core = String(raw||'').replace(/@/g,'').replace(/[^A-Za-z0-9_]/g,'').slice(0,32);
     return core ? '@'+core : '';
@@ -55,15 +53,14 @@
   }
 
   ready(() => {
-    const nfRub2  = new Intl.NumberFormat('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2});
     const tg      = window.Telegram?.WebApp || null;
 
     const usernameInput = $('#tgUsername');
     const buyForMeBtn   = $('#buyForMeBtn');
 
-    const packsWrap     = $('#subsPacks');            // контейнер пакетов
+    const packsWrap     = $('#subsPacks');
     const packBtns      = $$('#subsPacks .pack-item');
-    const totalValueEl  = $('#totalValue');           // сюда кладём сумму ₽
+    const totalValueEl  = $('#totalValue');
     const paySbpBtn     = $('#paySbpBtn');
     const payCryptoBtn  = $('#payCryptoBtn');
 
@@ -98,15 +95,13 @@
       });
     }
 
-    /* ---------- работа с пакетами (вернули .is-active) ---------- */
+    /* ---------- пакеты ---------- */
     function getSelectedPack() {
       const btn = Array.from(document.querySelectorAll("#subsPacks .pack-item"))
         .find(b => b.classList.contains("is-active"));
       if (!btn) return null;
-
       const months = parseInt(btn.dataset.months || "0", 10);
       const price  = parseFloat(String(btn.dataset.price || "0").replace(",", "."));
-
       return {
         months: Number.isInteger(months) ? months : 0,
         priceRub: Number.isFinite(price) ? price : 0,
@@ -132,8 +127,8 @@
         b.setAttribute("aria-pressed", active ? "true" : "false");
       });
       refreshPackIcons();
-      refreshTotal();     // пересчитать «Итого»
-      refreshPayState();  // включить/выключить кнопки
+      refreshTotal();
+      reevaluate(); // ← раньше тут был вызов несуществующей refreshPayState()
     }
 
     function paintPackPrices() {
@@ -141,22 +136,24 @@
         const priceEl = btn.querySelector("[data-price-el]");
         if (!priceEl) return;
         const price = parseFloat(String(btn.dataset.price || "0").replace(",", "."));
-        priceEl.textContent = Number.isFinite(price)
-          ? new Intl.NumberFormat("ru-RU", { style:"currency", currency:"RUB", maximumFractionDigits:2 }).format(price)
-          : "—";
+        try{
+          priceEl.textContent = Number.isFinite(price)
+            ? new Intl.NumberFormat("ru-RU", { style:"currency", currency:"RUB", maximumFractionDigits:2 }).format(price)
+            : "—";
+        }catch{
+          priceEl.textContent = Number.isFinite(price) ? `${price.toFixed(2)} руб.` : "—";
+        }
       });
     }
 
     function initPacks() {
-      // иконки в начальное состояние
+      // иконки и aria в начальное состояние + вешаем обработчики
       document.querySelectorAll("#subsPacks .pack-item").forEach(btn => {
         const img = btn.querySelector(".pack-icon img");
         if (img && btn.dataset.icon) img.src = btn.dataset.icon;
         btn.setAttribute("aria-pressed", btn.classList.contains("is-active") ? "true" : "false");
-        // обработчик выбора
         btn.addEventListener("click", () => selectPack(btn));
       });
-
       paintPackPrices();
       refreshPackIcons();
     }
@@ -166,7 +163,6 @@
       const priceRub = sel ? sel.priceRub : 0;
       const minor = Math.round(priceRub * 100);
 
-      const totalValueEl = document.querySelector("#totalValue");
       if (totalValueEl) {
         try {
           totalValueEl.textContent = new Intl.NumberFormat("ru-RU", { style:"currency", currency:"RUB", maximumFractionDigits:2 }).format(priceRub);
@@ -232,23 +228,12 @@
         if (!amountMinor){ alert('Сумма к оплате не рассчитана.'); return; }
 
         const payload = {
-          provider,                 // "wata" | "heleket"
-          product: PRODUCT,         // "premium"
-          username,                 // "@user"
-          months,                   // срок (бэку также подойдёт qty=months)
-          qty: months,
-          amount_minor: amountMinor,
-          currency: CURRENCY,
-
-          // рефералка и плательщик — если есть
+          provider, product: PRODUCT, username,
+          months, qty: months, amount_minor: amountMinor, currency: CURRENCY,
           ref_code:   (window.getRefCode && window.getRefCode()) || undefined,
           actor_tg_id: tg?.initDataUnsafe?.user?.id || undefined,
-
-          // возврат внутрь мини-аппа (оба варианта имён — для совместимости)
-          success_url: THANKS_SUCCESS,
-          fail_url:    THANKS_FAIL,
-          successUrl:  THANKS_SUCCESS,
-          returnUrl:   THANKS_FAIL
+          success_url: THANKS_SUCCESS, fail_url: THANKS_FAIL,
+          successUrl: THANKS_SUCCESS,  returnUrl: THANKS_FAIL
         };
 
         const resp = await fetch(`${API_BASE}/pay/initiate`, {
@@ -293,13 +278,12 @@
     }
 
     try{ tg?.ready?.(); }catch{}
-    paintPrices();
-    refreshTotal();
-    reevaluate();
+
+    // ВАЖНО: правильный порядок инициализации
+    initPacks();     // ← раньше не вызывалось (из-за этого не было иконок и подсветки)
+    refreshTotal();  // отрисовать «Итого» под текущий выбор (если есть)
+    reevaluate();    // включить/выключить кнопки
     initPayButtons();
     initCloseKeyboardOnOutsideTap();
   });
 })();
-
-
-

@@ -25,13 +25,9 @@
   const payCryptoBtn  = $("#payCryptoBtn");
 
   // --- helpers ---
-  function normalizeUsername(v) {
-    if (!v) return "";
-    let s = String(v).trim();
-    if (!s) return "";
-    if (s.startsWith("@")) return s;
-    if (/^[A-Za-z0-9_\.]+$/.test(s)) return "@" + s;
-    return s;
+  function normalizeWithAt(raw){
+    const core = String(raw||'').replace(/@/g,'').replace(/[^A-Za-z0-9_]/g,'').slice(0,32);
+    return core ? '@'+core : '';
   }
   function formatRub(num) {
     try {

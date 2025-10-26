@@ -54,12 +54,6 @@
     } catch { return 0; }
   }
 
-  function openStarsCoinPage() {
-    // Страница, которую сделаем позже:
-    const url = `${window.APP_BASE}/pages/starscoin/index.html`;
-    window.openInsideTelegram(url);
-  }
-
   // утилиты
   function truncate(str, max) {
     const s = String(str || '');

@@ -51,12 +51,12 @@
     try {
       const v = Number(localStorage.getItem('starscoin_balance'));
       return Number.isFinite(v) && v >= 0 ? v : 0;
-    } catch { return 10000; }
+    } catch { return 0; }
   }
 
   function openStarsCoinPage() {
     // Страница, которую сделаем позже:
-    const url = `${window.APP_BASE}/pages/coins/index.html`;
+    const url = `${window.APP_BASE}/pages/starscoin/index.html`;
     window.openInsideTelegram(url);
   }
 

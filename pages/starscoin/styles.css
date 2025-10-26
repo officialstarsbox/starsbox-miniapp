@@ -1,0 +1,78 @@
+/* =========================================
+   БАЗА ТЕМЫ (аналогично другим страницам)
+   ========================================= */
+*, *::before, *::after { box-sizing: border-box; }
+html, body { height: 100%; overflow-x: hidden; }
+
+.sc-page{
+  --form-w: clamp(320px, 92vw, 520px);
+
+  --bg: #090d18;
+  --text: #e6e9f0;
+  --muted:#9aa0a6;
+
+  --card:#0b0e1b;
+  --card-brd: rgba(255,255,255,.12);
+
+  --btn-bg: rgba(255,255,255,.06);
+  --btn-brd: rgba(255,255,255,.18);
+  --btn-hover: rgba(255,255,255,.10);
+  --btn-active: rgba(82,102,255,.18);
+  --focus:#5266ff;
+
+  --block-gap:16px;
+}
+
+body.sc-page{
+  margin:0; color:var(--text);
+  font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
+  background:var(--bg); min-height:100%;
+  -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
+}
+body.sc-page::before{
+  content:""; position:fixed; inset:0; z-index:-1;
+  background: radial-gradient(60% 100% at 50% 0%, #0e1530 0%, var(--bg) 70%);
+  background-repeat:no-repeat; background-size:cover; pointer-events:none;
+}
+
+/* =========================================
+   Топбар (как на ref-странице)
+   ========================================= */
+.topbar{
+  position: sticky; top:0; z-index:10;
+  display:grid; grid-template-columns:44px 1fr 44px;
+  align-items:center; gap:8px;
+  padding:14px calc((100vw - var(--form-w))/2) 14px;
+  background:rgba(9,13,24,.7); backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--card-brd);
+}
+.title{ margin:0; text-align:center; font-size:18px; font-weight:400 }
+.topbar-spacer{ width:44px; height:40px }
+
+/* Кнопка «назад» — квадрат, стрелка как на других страницах */
+.back-btn{
+  justify-self:start; width:40px; height:40px;
+  border:1px solid var(--btn-brd);
+  background:var(--btn-bg);
+  border-radius:14px; display:inline-grid; place-items:center;
+  cursor:pointer; text-decoration:none;
+  transition:background .2s, border-color .2s, transform .06s;
+}
+.back-btn::before{
+  content:""; width:10px; height:10px;
+  border-left:2px solid var(--text);
+  border-bottom:2px solid var(--text);
+  transform:translateX(1px) rotate(45deg);
+}
+.back-btn:hover{ background:var(--btn-hover) }
+.back-btn:active{ transform:translateY(1px) }
+.back-btn:focus-visible{ outline:2px solid var(--focus); outline-offset:2px }
+
+/* =========================================
+   Контентная колонка
+   ========================================= */
+.wrap{
+  width:100%; max-width:var(--form-w);
+  margin:20px auto 40px; padding:0 6px 20px;
+}
+.wrap > * + * { margin-top: var(--block-gap); }

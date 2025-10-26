@@ -51,7 +51,7 @@
     try {
       const v = Number(localStorage.getItem('starscoin_balance'));
       return Number.isFinite(v) && v >= 0 ? v : 0;
-    } catch { return 0; }
+    } catch { return 10000; }
   }
 
   function openStarsCoinPage() {

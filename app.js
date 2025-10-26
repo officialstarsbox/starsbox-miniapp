@@ -13,7 +13,7 @@
   window.PAY_SUCCESS_URL = window.APP_BASE + '/pages/pay/success/';
   window.PAY_FAIL_URL    = window.APP_BASE + '/pages/pay/fail/';
 
-  // Открыть мини-апп бота с произвольным payload (используй везде)
+  // Открыть мини-апп бота с произвольным payload
   function openMiniApp(payload='') {
     const bot = 'StarssBox_bot'; // без @
     const sp  = payload ? encodeURIComponent(payload) : '';
@@ -42,6 +42,23 @@
       window.location.href = url;
     }
   };
+
+  // ===== StarsCoin (заглушка на время, потом подменишь на реальный fetch) =====
+  function getStarsCoinBalance() {
+    // TODO: заменить на вызов твоего API/стора, например:
+    // return fetch('/api/wallet/balance').then(r=>r.json()).then(d=>d.balance)
+    // Пока: читаем из localStorage или 0
+    try {
+      const v = Number(localStorage.getItem('starscoin_balance'));
+      return Number.isFinite(v) && v >= 0 ? v : 0;
+    } catch { return 0; }
+  }
+
+  function openStarsCoinPage() {
+    // Страница, которую сделаем позже:
+    const url = `${window.APP_BASE}/pages/coins/index.html`;
+    window.openInsideTelegram(url);
+  }
 
   // утилиты
   function truncate(str, max) {
@@ -82,10 +99,20 @@
 
     const showUsername = username ? '@' + username : '—';
     if (userEl) userEl.textContent = truncate(showUsername, 16);
-
     if (photoEl && photo) photoEl.src = photo;
 
-    // фоны из data-bg
+    // StarsCoin баланс + клик
+    const scBtn = document.getElementById('scBalance');
+    const scText = document.getElementById('scBalanceText');
+    if (scText) {
+      const bal = getStarsCoinBalance();
+      scText.textContent = `Баланс: ${bal} coin`;
+    }
+    if (scBtn) {
+      scBtn.addEventListener('click', openStarsCoinPage);
+    }
+
+    // фоны из data-bg (как было)
     document.querySelectorAll('.panel-card[data-bg]').forEach(card => {
       const url = card.getAttribute('data-bg');
       const bg = card.querySelector('.panel-bg');
@@ -94,6 +121,7 @@
   });
 })();
 
+/* ===== возврат по orderId из startapp (как было) ===== */
 (function(){
   const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
   const API = 'https://api.starsbox.org';
@@ -105,7 +133,6 @@
   }
 
   function extractOrderId(sp){
-    // принимаем: resume:<id>, success:<id>, paid:<id>, fail:<id>
     const m = String(sp||'').trim().match(/^(?:resume|success|paid|fail)[:_\-]+(.+)$/i);
     return m ? m[1] : null;
   }
@@ -113,7 +140,7 @@
   async function fetchStatus(orderId){
     const endpoints = [
       `${API}/pay/status/${encodeURIComponent(orderId)}`,
-      `${API}/wata/dg/status/${encodeURIComponent(orderId)}` // резервный
+      `${API}/wata/dg/status/${encodeURIComponent(orderId)}`
     ];
     for (const u of endpoints){
       try{
@@ -151,15 +178,13 @@
   });
 })();
 
+/* ===== реф.код (как было) ===== */
 (function(){
-  // На бэке публичные коды вида ABCD234… (латиница+цифры), без префиксов.
-  // Нормализуем в UPPERCASE перед сохранением/отправкой.
   const REF_RE = /^[A-Z0-9]{3,32}$/;
 
   function isValidRef(code){
     return REF_RE.test(String(code||'').trim().toUpperCase());
   }
-
   function saveRef(code){
     try{
       const c = String(code||'').trim().toUpperCase();
@@ -169,7 +194,6 @@
       return true;
     }catch{ return false; }
   }
-
   function loadRef(){
     try{
       const ls = localStorage.getItem('sb_ref_code');
@@ -179,8 +203,6 @@
     }catch{}
     return null;
   }
-
-  // из start/startapp берём только payload вида ref:CODE
   function extractRefFromStartParam(raw){
     const s = String(raw||'').trim();
     const m = s.match(/^ref[:=_-]+([A-Za-z0-9]{3,32})$/i);
@@ -190,34 +212,23 @@
     }
     return null;
   }
-
   function sanitizeMaybeRef(raw){
     if (!raw) return null;
     let s = String(raw).trim();
-    // поддерживаем ?ref=CODE и #ref=CODE
     s = s.split(/[&?#]/)[0];
     const up = s.toUpperCase();
     return isValidRef(up) ? up : null;
   }
-
   function captureRefFromLaunch(){
     const tg = window.Telegram && window.Telegram.WebApp;
-
-    // 1) Telegram WebApp start_param/startparam
     let raw = null;
     try{ tg?.ready?.(); raw = tg?.initDataUnsafe?.start_param || tg?.initDataUnsafe?.startparam || null; }catch{}
-
-    // из start берём только ref:CODE
     let code = extractRefFromStartParam(raw);
-
-    // 2) если нет — смотрим ?startapp / ?start
     if (!code){
       const u = new URL(window.location.href);
       const sp = u.searchParams.get('startapp') || u.searchParams.get('start') || null;
       code = extractRefFromStartParam(sp);
     }
-
-    // 3) явный ?ref= / #ref=
     if (!code){
       const u = new URL(window.location.href);
       code = sanitizeMaybeRef(
@@ -227,8 +238,6 @@
         || null
       );
     }
-
-    // сохранить если валидный; иначе вернуть кеш, если он норм
     if (code) {
       saveRef(code);
       return code;
@@ -243,26 +252,18 @@
     }
     return cached;
   }
-
-  // публичные хелперы для страниц оформления
   window.getRefCode = function(){ return loadRef(); };
-
   window.getActorTgId = function(){
     try{
       const id = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
       return (typeof id === 'number' && isFinite(id)) ? id : null;
     }catch{ return null; }
   };
-
-  // твоя «моя реф-ссылка» — просто сборка. Сам код генерится/хранится на бэке,
-  // но если уже есть сохранённый код — подставим его.
   window.getMyRefLink = function(botUsername){
     const bot = (botUsername || 'StarssBox_bot').replace(/^@/, '');
     const code = loadRef();
     const payload = code ? `ref:${code}` : '';
     return `https://t.me/${bot}?startapp=${encodeURIComponent(payload)}`;
   };
-
-  // вызвать один раз при загрузке
   captureRefFromLaunch();
 })();

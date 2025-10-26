@@ -15,7 +15,12 @@
         <div id="userFullName" class="userbox__name">—</div>
         <div id="userUsername" class="userbox__username">—</div>
       </div>
-      <img id="brandIcon" class="brand-icon" src="assets/icons/settings2.png" alt="StarsBox">
+
+      <!-- StarsCoin баланс (вместо brandIcon) -->
+      <button id="scBalance" class="sc-balance" type="button" aria-label="Открыть StarsCoin">
+        <span id="scBalanceText" class="sc-balance__text">Баланс: — coin</span>
+        <span class="sc-plus" aria-hidden="true"></span>
+      </button>
     </div>
   </header>
 
@@ -128,7 +133,6 @@
               <div class="panel__sub">Зарабатывай с нами</div>
             </div>
             <div class="panel__pill">
-              <!-- можно заменить иконку на любую из ваших -->
               <img src="assets/icons/акции.png" alt="">
             </div>
           </div>
@@ -142,5 +146,3 @@
   <script src="app.js"></script>
 </body>
 </html>
-
-

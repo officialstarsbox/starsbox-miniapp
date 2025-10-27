@@ -30,7 +30,6 @@
   const modal   = $("#exModal");
   const exOpen  = $("#depositBtn");
   const exClose = $("#exClose");
-  const exCancel= $("#exCancel");
   const exSubmit= $("#exSubmit");
   const starsIn = $("#starsIn");
   const coinsOut= $("#coinsOut");
@@ -84,7 +83,6 @@
 
     exOpen?.addEventListener("click", openModal);
     exClose?.addEventListener("click", closeModal);
-    exCancel?.addEventListener("click", closeModal);
     modal?.addEventListener("click", (e)=>{ if (e.target===modal) closeModal(); });
     document.addEventListener("keydown", (e)=>{ if (e.key==="Escape" && modal.classList.contains("is-open")) closeModal(); });
 

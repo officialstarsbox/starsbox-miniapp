@@ -34,7 +34,6 @@
 
       <!-- Пустое состояние -->
       <div id="txEmpty" class="tx-empty">
-        <!-- Замените путь на свою картинку -->
         <img src="../../assets/gifts/брилиант.gif" alt="" />
         <p class="tx-empty__title">Упс... История пуста</p>
       </div>
@@ -42,6 +41,7 @@
       <!-- Список транзакций -->
       <ul id="txList" class="tx-list" hidden></ul>
     </section>
+
     <!-- ===== МОДАЛЬНОЕ ОКНО ОБМЕНА ===== -->
     <div class="modal" id="exModal" aria-hidden="true">
       <div class="modal__card" role="dialog" aria-modal="true" aria-labelledby="exTitle">
@@ -50,10 +50,10 @@
 
         <div class="fields-row">
           <!-- Левая колонка -->
-          <div class="field">
+          <div class="field field--left">
             <label for="starsIn">Вы отдаёте, stars</label>
             <div class="inp-with-ico">
-              <!-- подставь свою иконку -->
+              <!-- подставь свою иконку (скорее всего путь: ../../assets/icons/...) -->
               <img class="inp-ico" src="assets/ico-stars.png" alt="">
               <input id="starsIn" class="inp" inputmode="numeric" pattern="[0-9]*" placeholder="0" autocomplete="off" />
             </div>
@@ -63,10 +63,10 @@
           <div class="swap-ico" aria-hidden="true">⇄</div>
 
           <!-- Правая колонка -->
-          <div class="field">
+          <div class="field field--right">
             <label for="coinsOut">Вы получаете, coin</label>
             <div class="inp-with-ico">
-              <!-- подставь свою иконку -->
+              <!-- подставь свою иконку (скорее всего путь: ../../assets/icons/...) -->
               <img class="inp-ico" src="assets/ico-coin.png" alt="">
               <input id="coinsOut" class="inp" placeholder="0" autocomplete="off" readonly />
             </div>
@@ -83,8 +83,8 @@
     <!-- ===== /МОДАЛКА ===== -->
   </main>
 
-  <!-- Telegram WebApp SDK -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="./app.js"></script>
 </body>
 </html>
+

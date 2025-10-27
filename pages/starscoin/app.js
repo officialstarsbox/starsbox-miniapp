@@ -2,9 +2,9 @@
   const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
   try { tg?.ready?.(); tg?.expand?.(); } catch {}
 
-  // ===== Состояние страницы (как раньше) =====
+  // Состояние
   let balance = 0;
-  const tx = []; // история (пока пусто для демо)
+  const tx = [];
 
   const $ = (s) => document.querySelector(s);
   function fmtAmount(v){ const n=Number(v||0); const sign=n>=0?"+":"–"; const cls=n>=0?"tx-amt--pos":"tx-amt--neg"; return {text:`${sign} ${Math.abs(n)} COIN`, cls}; }
@@ -26,7 +26,7 @@
     }
   }
 
-  // ====== Модалка обмена ======
+  // ===== Модалка обмена =====
   const modal   = $("#exModal");
   const exOpen  = $("#depositBtn");
   const exClose = $("#exClose");
@@ -35,10 +35,8 @@
   const coinsOut= $("#coinsOut");
   const rateVal = $("#rateVal");
 
-  // курс обмена (можно менять на лету из кода/конфига)
-  let EXCHANGE_RATE = 1.00; // 1 star = 1 coin по умолчанию
+  let EXCHANGE_RATE = 1.00;
 
-  // публичная «регулировка» курса (на всякий случай)
   window.setStarsToCoinRate = function (r){
     const n = Number(r);
     if (isFinite(n) && n>0){
@@ -48,7 +46,13 @@
     }
   };
 
-  function openModal(){ modal.classList.add("is-open"); modal.setAttribute("aria-hidden","false"); starsIn.value=""; coinsOut.value="0"; updateSubmit(0); starsIn.focus(); }
+  function openModal(){
+    modal.classList.add("is-open");
+    modal.setAttribute("aria-hidden","false");
+    starsIn.value=""; coinsOut.value="0"; updateSubmit(0);
+    // небольшой тайм-аут, чтобы фокус после открытия точно сработал
+    setTimeout(()=>starsIn.focus(), 0);
+  }
   function closeModal(){ modal.classList.remove("is-open"); modal.setAttribute("aria-hidden","true"); }
 
   function onlyDigits(s){ return String(s||"").replace(/[^\d]/g,""); }
@@ -67,7 +71,6 @@
   }
 
   function requestStarsTransfer(stars){
-    // минимально-совместимый путь: шлём payload боту (он откроет платёж звёздами)
     const payload = { action: "exchange_stars_to_coin", stars: Number(stars) };
     try{
       tg?.sendData?.(JSON.stringify(payload));
@@ -77,7 +80,6 @@
     }
   }
 
-  // события
   document.addEventListener("DOMContentLoaded", () => {
     renderBalance(); renderTx();
 
@@ -100,7 +102,7 @@
       closeModal();
     });
 
-    // покажем актуальный курс
     rateVal.textContent = EXCHANGE_RATE.toFixed(2);
   });
 })();
+

@@ -16,8 +16,33 @@
   </header>
 
   <!-- ===== Контент ===== -->
-  <main class="wrap" id="pageRoot">
-    <!-- Контент добавим на следующем шаге -->
+  <main class="wrap">
+    <!-- Панель баланса -->
+    <section class="balance-card">
+      <p class="balance-card__caption">Баланс кошелька</p>
+      <div class="balance-card__value" id="scBalanceValue">0 COIN</div>
+
+      <div class="balance-card__actions">
+        <button id="depositBtn" class="btn btn--primary">
+          Пополнить <span aria-hidden="true" class="plus">+</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- История операций -->
+    <section class="tx-section">
+      <h2 class="sec-title">История операций</h2>
+
+      <!-- Пустое состояние -->
+      <div id="txEmpty" class="tx-empty">
+        <!-- Замените путь на свою картинку -->
+        <img src="assets/empty.png" alt="" />
+        <p class="tx-empty__title">Упс... В настоящий момент история пуста</p>
+      </div>
+
+      <!-- Список транзакций -->
+      <ul id="txList" class="tx-list" hidden></ul>
+    </section>
   </main>
 
   <!-- Telegram WebApp SDK -->

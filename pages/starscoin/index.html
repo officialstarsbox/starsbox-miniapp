@@ -81,27 +81,65 @@
       </div>
     </div>
     <!-- ===== /МОДАЛКА ===== -->
+    <!-- Trigger-кнопка (ваша пилюля) -->
+<button id="balance-pill" class="pill">⭐ Баланс: 0</button>
+
+<!-- Модалка -->
+<div id="starscoin-modal" class="modal-backdrop" hidden>
+  <div class="modal-card">
+    <h3>Раздел StarsCoin недоступен</h3>
+    <p>Пополнение StarsCoin сейчас в разработке и временно недоступно.</p>
+    <div class="actions">
+      <button id="starscoin-close" class="btn">Ок</button>
+    </div>
+  </div>
+</div>
+
+<style>
+.modal-backdrop {
+  position: fixed; inset: 0; z-index: 1000;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,.5);
+}
+.modal-card {
+  background: #fff; color: #111; max-width: 420px; width: calc(100% - 32px);
+  border-radius: 16px; padding: 16px; box-shadow: 0 10px 30px rgba(0,0,0,.2);
+}
+.modal-card h3 { margin: 0 0 8px; font-size: 18px; }
+.actions { display: flex; justify-content: flex-end; margin-top: 12px; }
+.btn { background:#111; color:#fff; border:none; border-radius:12px; padding:8px 14px; }
+.pill { background:#111; color:#fff; border:none; border-radius:999px; padding:8px 14px; }
+</style>
+
+<script>
+  const pill = document.getElementById("balance-pill");
+  const modal = document.getElementById("starscoin-modal");
+  const btnClose = document.getElementById("starscoin-close");
+
+  function openModal() {
+    modal.hidden = false;
+    document.body.style.overflow = "hidden";
+  }
+  function closeModal() {
+    modal.hidden = true;
+    document.body.style.overflow = "";
+  }
+
+  pill.addEventListener("click", function (e) {
+    e.preventDefault(); e.stopPropagation();
+    openModal();
+  });
+
+  btnClose.addEventListener("click", closeModal);
+  modal.addEventListener("click", (e) => {
+    if (e.target === modal) closeModal(); // клик по фону
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !modal.hidden) closeModal();
+  });
+</script>
   </main>
 
-   <script>
-    window.__STARSCOIN_MAINTENANCE__ = true; // true = закрыто
-  </script>
-  <script>
-    if (window.__STARSCOIN_MAINTENANCE__) {
-      var tg = window.Telegram && window.Telegram.WebApp;
-      if (tg && tg.showPopup) {
-        tg.HapticFeedback && tg.HapticFeedback.notificationOccurred && tg.HapticFeedback.notificationOccurred("warning");
-        tg.showPopup({
-          title: "Ещё чуть-чуть",
-          message: "Страница пополнения StarsCoin на техработах.",
-          buttons: [{ id: "back", type: "close", text: "Назад" }],
-        });
-      } else {
-        alert("StarsCoin на техработах.");
-      }
-      location.replace("/"); // редирект на главную
-    }
-  </script>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="./app.js"></script>
 </body>

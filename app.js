@@ -261,30 +261,3 @@
   };
   captureRefFromLaunch();
 })();
-document.addEventListener("DOMContentLoaded", function () {
-  var blocked = !!window.__STARSCOIN_MAINTENANCE__;
-  var pill = document.querySelector("[data-balance-pill]"); // навесь этот data-атрибут на кнопку
-
-  if (!pill) return;
-
-  if (blocked) pill.classList.add("disabled");
-
-  pill.addEventListener("click", function (e) {
-    if (!blocked) return;
-
-    e.preventDefault();
-    e.stopPropagation();
-
-    var tg = window.Telegram && window.Telegram.WebApp;
-    if (tg && tg.showPopup) {
-      tg.HapticFeedback && tg.HapticFeedback.impactOccurred && tg.HapticFeedback.impactOccurred("light");
-      tg.showPopup({
-        title: "Раздел в разработке",
-        message: "Пополнение StarsCoin временно недоступно. Скоро вернём.",
-        buttons: [{ id: "ok", type: "close", text: "Ок" }],
-      });
-    } else {
-      alert("Пополнение StarsCoin временно недоступно.");
-    }
-  });
-});

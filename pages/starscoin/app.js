@@ -2,7 +2,10 @@
   const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
   try { tg?.ready?.(); tg?.expand?.(); } catch {}
 
-  // Состояние
+  // ==== НАСТРОЙКА API ====
+  const API_BASE = 'https://api.starsbox.org'; // при необходимости поменяй
+
+  // ===== состояние страницы (как у тебя было) =====
   let balance = 0;
   const tx = [];
 
@@ -26,7 +29,7 @@
     }
   }
 
-  // ===== Модалка обмена =====
+  // ====== Модалка обмена ======
   const modal   = $("#exModal");
   const exOpen  = $("#depositBtn");
   const exClose = $("#exClose");
@@ -36,7 +39,6 @@
   const rateVal = $("#rateVal");
 
   let EXCHANGE_RATE = 1.00;
-
   window.setStarsToCoinRate = function (r){
     const n = Number(r);
     if (isFinite(n) && n>0){
@@ -46,13 +48,7 @@
     }
   };
 
-  function openModal(){
-    modal.classList.add("is-open");
-    modal.setAttribute("aria-hidden","false");
-    starsIn.value=""; coinsOut.value="0"; updateSubmit(0);
-    // небольшой тайм-аут, чтобы фокус после открытия точно сработал
-    setTimeout(()=>starsIn.focus(), 0);
-  }
+  function openModal(){ modal.classList.add("is-open"); modal.setAttribute("aria-hidden","false"); starsIn.value=""; coinsOut.value="0"; updateSubmit(0); starsIn.focus(); }
   function closeModal(){ modal.classList.remove("is-open"); modal.setAttribute("aria-hidden","true"); }
 
   function onlyDigits(s){ return String(s||"").replace(/[^\d]/g,""); }
@@ -70,16 +66,60 @@
     exSubmit.disabled = !(n>0);
   }
 
-  function requestStarsTransfer(stars){
-    const payload = { action: "exchange_stars_to_coin", stars: Number(stars) };
-    try{
-      tg?.sendData?.(JSON.stringify(payload));
-      tg?.showPopup?.({ title:"Подтвердите в чате", message:"Мы отправили запрос обмена. Продолжите в диалоге с ботом.", buttons:[{id:"ok", type:"close", text:"Окей"}] });
-    }catch(e){
-      alert("Не удалось инициировать обмен. Откройте чат с ботом и повторите.");
-    }
+  // === NEW: запрос инвойса на N звёзд у бэка ===
+  async function requestStarsInvoice(stars){
+    const body = { stars: Number(stars), payload: "exchange:starscoin" };
+    const r = await fetch(`${API_BASE}/starscoin/invoice`, {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json' },
+      body: JSON.stringify(body),
+    }).catch(()=>null);
+    if (!r || !r.ok) throw new Error('invoice_request_failed');
+    const data = await r.json().catch(()=>null);
+    if (!data || data.ok !== true) throw new Error('bad_invoice_response');
+    // поддержим обе формы ответа
+    return data.invoice_link || data.slug;
   }
 
+  // === NEW: открыть платёжное окно Telegram Stars ===
+  function openStarsInvoice(linkOrSlug){
+    return new Promise((resolve, reject) => {
+      if (!tg?.openInvoice){ reject(new Error('webapp_no_openinvoice')); return; }
+
+      // подстрахуемся слушателем результата
+      const onClosed = (e) => {
+        // e: { status: 'paid' | 'cancelled' | 'failed' }
+        try { tg.offEvent('invoiceClosed', onClosed); } catch {}
+        resolve(e);
+      };
+      try { tg.onEvent('invoiceClosed', onClosed); } catch {}
+
+      // сам запуск
+      tg.openInvoice(linkOrSlug, (res) => {
+        // callback может вернуть строку ошибки сразу (например, неверный slug)
+        if (typeof res === 'string' && res !== 'ok'){
+          try { tg.offEvent('invoiceClosed', onClosed); } catch {}
+          reject(new Error(res));
+        }
+      });
+    });
+  }
+
+  // === при успехе — локально обновим баланс/историю
+  function applySuccessfulExchange(stars){
+    const coins = Math.floor(Number(stars) * EXCHANGE_RATE);
+    balance += coins;
+    tx.unshift({
+      type: 'exchange',
+      title: `Обмен ${stars}★ → ${coins} coin`,
+      amount: +coins,
+      dt: Date.now(),
+    });
+    renderBalance();
+    renderTx();
+  }
+
+  // события
   document.addEventListener("DOMContentLoaded", () => {
     renderBalance(); renderTx();
 
@@ -95,11 +135,34 @@
       recalc();
     });
 
-    exSubmit?.addEventListener("click", () => {
+    // === КЛИК ПО «Обменять N stars» — ТЕПЕРЬ ОФИЦИАЛЬНЫЙ FLOW ===
+    exSubmit?.addEventListener("click", async () => {
       const stars = parseInt(onlyDigits(starsIn.value)||"0",10);
       if (!stars) return;
-      requestStarsTransfer(stars);
-      closeModal();
+      if (!tg?.openInvoice){
+        alert('Покупка звёздами доступна только внутри Telegram.');
+        return;
+      }
+
+      exSubmit.disabled = true;
+
+      try{
+        const linkOrSlug = await requestStarsInvoice(stars);
+        const res = await openStarsInvoice(linkOrSlug);
+        // res.status: 'paid' | 'cancelled' | 'failed'
+        if (res && res.status === 'paid'){
+          applySuccessfulExchange(stars);
+          tg?.showToast?.('Оплата звёздами прошла успешно ✨');
+          closeModal();
+        } else if (res && res.status === 'failed'){
+          tg?.showAlert?.('Оплата не прошла. Попробуйте ещё раз.');
+        } // cancelled — просто молчим
+      }catch(err){
+        console.warn('openInvoice error:', err);
+        tg?.showAlert?.('Не удалось открыть окно оплаты. Проверьте соединение и повторите.');
+      }finally{
+        exSubmit.disabled = false;
+      }
     });
 
     rateVal.textContent = EXCHANGE_RATE.toFixed(2);

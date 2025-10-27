@@ -406,16 +406,6 @@ body.home-page::before{
   z-index: 1;
   max-width: min(60%, 520px);
 }
-.promo-title {
-  font-weight: 800;
-  font-size: clamp(18px, 3.2vw, 28px);
-  line-height: 1.1;
-}
-.promo-sub {
-  margin-top: 4px;
-  font-size: clamp(12px, 2.2vw, 16px);
-  opacity: .95;
-}
 
 /* точки/прогресс */
 .promo-dots {

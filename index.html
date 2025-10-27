@@ -6,15 +6,6 @@
   <title>StarsBox — Главная</title>
   <link rel="stylesheet" href="styles.css" />
 
-  <!-- Мини-стили модалки -->
-  <style>
-    .sc-modal-backdrop{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.5)}
-    .sc-modal-card{background:#fff;color:#111;max-width:420px;width:calc(100% - 32px);border-radius:16px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.2)}
-    .sc-modal-card h3{margin:0 0 8px;font-size:18px}
-    .sc-modal-actions{display:flex;justify-content:flex-end;margin-top:12px}
-    .sc-btn{background:#111;color:#fff;border:none;border-radius:12px;padding:8px 14px;cursor:pointer}
-    .sc-hidden{display:none}
-  </style>
 </head>
 <body class="home-page">
   <!-- ===== Топбар ===== -->
@@ -47,8 +38,6 @@
   <main class="wrap" id="pageRoot">
     <!-- Новости и акции -->
 <section class="promo" aria-label="Новости и акции">
-  <h2 class="section-title">Новости и акции</h2>
-
   <div class="promo-viewport" id="promoViewport" aria-live="polite">
     <!-- Слайд 1 — Звёзды -->
     <a class="promo-slide is-active"
@@ -63,10 +52,6 @@
              assets/banners/stars@3x.webp 3x
            "
            alt="">
-      <div class="promo-copy">
-        <div class="promo-title">Купите звёзды</div>
-        <div class="promo-sub">Моментальное пополнение</div>
-      </div>
     </a>
 
     <!-- Слайд 2 — Premium -->
@@ -82,10 +67,6 @@
              assets/banners/premium@3x.webp 3x
            "
            alt="">
-      <div class="promo-copy">
-        <div class="promo-title">Telegram Premium</div>
-        <div class="promo-sub">12 месяцев — выгоднее</div>
-      </div>
     </a>
 
     <!-- Слайд 3 — TON -->
@@ -101,10 +82,6 @@
              assets/banners/ton@3x.webp 3x
            "
            alt="">
-      <div class="promo-copy">
-        <div class="promo-title">Купите TON</div>
-        <div class="promo-sub">Лучший курс внутри TG</div>
-      </div>
     </a>
 
     <!-- Слайд 4 — Gifts -->
@@ -120,10 +97,6 @@
              assets/banners/gifts@3x.webp 3x
            "
            alt="">
-      <div class="promo-copy">
-        <div class="promo-title">Подарки друзьям</div>
-        <div class="promo-sub">Стикеры, анимации и больше</div>
-      </div>
     </a>
 
     <!-- Слайд 5 — Steam -->
@@ -139,10 +112,6 @@
              assets/banners/steam@3x.webp 3x
            "
            alt="">
-      <div class="promo-copy">
-        <div class="promo-title">Пополнение Steam</div>
-        <div class="promo-sub">Кэшбэк и выгодный курс</div>
-      </div>
     </a>
   </div>
 
@@ -170,8 +139,6 @@
 
     <!-- Панели продуктов -->
     <section class="product-panels" aria-label="Выберите продукт">
-      <h2 class="sec-title">Выберите продукт</h2>
-
       <div class="panels-grid">
         <!-- Звезды -->
         <a class="panel panel--lg panel--stars" href="pages/stars/index.html">
@@ -267,50 +234,6 @@
 
   <!-- Telegram WebApp SDK -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-
-  <!-- Локальный JS: перехват клика по пилюле и показ модалки -->
-  <script>
-    (function () {
-      const pill = document.getElementById("starsCoinBtn");
-      const modal = document.getElementById("starscoinModal");
-      const btnClose = document.getElementById("scModalClose");
-
-      function openModal() {
-        modal.classList.remove("sc-hidden");
-        document.body.style.overflow = "hidden";
-        // лёгкая тактильная отдача в Telegram WebApp (не критично)
-        try { Telegram?.WebApp?.HapticFeedback?.impactOccurred("light"); } catch {}
-        // блокируем swipe-закрытие мини-аппа поверх модалки
-        try { Telegram?.WebApp?.enableClosingConfirmation(); } catch {}
-      }
-
-      function closeModal() {
-        modal.classList.add("sc-hidden");
-        document.body.style.overflow = "";
-        try { Telegram?.WebApp?.disableClosingConfirmation(); } catch {}
-      }
-
-      pill.addEventListener("click", function (e) {
-        // Блокируем переход по href
-        e.preventDefault();
-        e.stopPropagation();
-        openModal();
-      });
-
-      btnClose.addEventListener("click", closeModal);
-
-      // Клик по фону — тоже закрывает
-      modal.addEventListener("click", (e) => {
-        if (e.target === modal) closeModal();
-      });
-
-      // Esc — закрыть
-      document.addEventListener("keydown", (e) => {
-        if (e.key === "Escape" && !modal.classList.contains("sc-hidden")) closeModal();
-      });
-    })();
-  </script>
-
   <script src="app.js"></script>
 </body>
 </html>

@@ -446,3 +446,10 @@ body.home-page::before{
   .promo-slide { transition: none; }
   .promo-fill { transition: none !important; }
 }
+
+.sc-modal-backdrop{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.5)}
+.sc-modal-card{background:#fff;color:#111;max-width:420px;width:calc(100% - 32px);border-radius:16px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.2)}
+.sc-modal-card h3{margin:0 0 8px;font-size:18px}
+.sc-modal-actions{display:flex;justify-content:flex-end;margin-top:12px}
+.sc-btn{background:#111;color:#fff;border:none;border-radius:12px;padding:8px 14px;cursor:pointer}
+.sc-hidden{display:none}

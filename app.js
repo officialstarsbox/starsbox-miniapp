@@ -325,3 +325,42 @@
   // автозапуск
   setActive(0);
 })();
+(function () {
+      const pill = document.getElementById("starsCoinBtn");
+      const modal = document.getElementById("starscoinModal");
+      const btnClose = document.getElementById("scModalClose");
+
+      function openModal() {
+        modal.classList.remove("sc-hidden");
+        document.body.style.overflow = "hidden";
+        // лёгкая тактильная отдача в Telegram WebApp (не критично)
+        try { Telegram?.WebApp?.HapticFeedback?.impactOccurred("light"); } catch {}
+        // блокируем swipe-закрытие мини-аппа поверх модалки
+        try { Telegram?.WebApp?.enableClosingConfirmation(); } catch {}
+      }
+
+      function closeModal() {
+        modal.classList.add("sc-hidden");
+        document.body.style.overflow = "";
+        try { Telegram?.WebApp?.disableClosingConfirmation(); } catch {}
+      }
+
+      pill.addEventListener("click", function (e) {
+        // Блокируем переход по href
+        e.preventDefault();
+        e.stopPropagation();
+        openModal();
+      });
+
+      btnClose.addEventListener("click", closeModal);
+
+      // Клик по фону — тоже закрывает
+      modal.addEventListener("click", (e) => {
+        if (e.target === modal) closeModal();
+      });
+
+      // Esc — закрыть
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && !modal.classList.contains("sc-hidden")) closeModal();
+      });
+})();

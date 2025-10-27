@@ -83,6 +83,22 @@
     <!-- ===== /МОДАЛКА ===== -->
   </main>
 
+  <script>
+    if (window.__STARSCOIN_MAINTENANCE__) {
+      var tg = window.Telegram && window.Telegram.WebApp;
+      if (tg && tg.showPopup) {
+        tg.HapticFeedback && tg.HapticFeedback.notificationOccurred && tg.HapticFeedback.notificationOccurred("warning");
+        tg.showPopup({
+          title: "Ещё чуть-чуть",
+          message: "Страница пополнения StarsCoin на техработах.",
+          buttons: [{ id: "back", type: "close", text: "Назад" }],
+        });
+      } else {
+        alert("StarsCoin на техработах.");
+      }
+      location.replace("/"); // редирект на главную
+    }
+  </script>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="./app.js"></script>
 </body>

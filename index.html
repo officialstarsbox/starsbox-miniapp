@@ -5,6 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>StarsBox — Главная</title>
   <link rel="stylesheet" href="styles.css" />
+
+  <!-- Мини-стили модалки -->
+  <style>
+    .sc-modal-backdrop{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.5)}
+    .sc-modal-card{background:#fff;color:#111;max-width:420px;width:calc(100% - 32px);border-radius:16px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.2)}
+    .sc-modal-card h3{margin:0 0 8px;font-size:18px}
+    .sc-modal-actions{display:flex;justify-content:flex-end;margin-top:12px}
+    .sc-btn{background:#111;color:#fff;border:none;border-radius:12px;padding:8px 14px;cursor:pointer}
+    .sc-hidden{display:none}
+  </style>
 </head>
 <body class="home-page">
   <!-- ===== Топбар ===== -->
@@ -150,8 +160,63 @@
     </section>
   </main>
 
+  <!-- Модалка StarsCoin -->
+  <div id="starscoinModal" class="sc-modal-backdrop sc-hidden" role="dialog" aria-modal="true" aria-labelledby="scModalTitle">
+    <div class="sc-modal-card">
+      <h3 id="scModalTitle">Раздел StarsCoin недоступен</h3>
+      <p>Пополнение <b>StarsCoin</b> сейчас в разработке и временно закрыто. Вернём доступ в ближайшее время.</p>
+      <div class="sc-modal-actions">
+        <button id="scModalClose" class="sc-btn" type="button">Ок</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Telegram WebApp SDK -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+  <!-- Локальный JS: перехват клика по пилюле и показ модалки -->
+  <script>
+    (function () {
+      const pill = document.getElementById("starsCoinBtn");
+      const modal = document.getElementById("starscoinModal");
+      const btnClose = document.getElementById("scModalClose");
+
+      function openModal() {
+        modal.classList.remove("sc-hidden");
+        document.body.style.overflow = "hidden";
+        // лёгкая тактильная отдача в Telegram WebApp (не критично)
+        try { Telegram?.WebApp?.HapticFeedback?.impactOccurred("light"); } catch {}
+        // блокируем swipe-закрытие мини-аппа поверх модалки
+        try { Telegram?.WebApp?.enableClosingConfirmation(); } catch {}
+      }
+
+      function closeModal() {
+        modal.classList.add("sc-hidden");
+        document.body.style.overflow = "";
+        try { Telegram?.WebApp?.disableClosingConfirmation(); } catch {}
+      }
+
+      pill.addEventListener("click", function (e) {
+        // Блокируем переход по href
+        e.preventDefault();
+        e.stopPropagation();
+        openModal();
+      });
+
+      btnClose.addEventListener("click", closeModal);
+
+      // Клик по фону — тоже закрывает
+      modal.addEventListener("click", (e) => {
+        if (e.target === modal) closeModal();
+      });
+
+      // Esc — закрыть
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && !modal.classList.contains("sc-hidden")) closeModal();
+      });
+    })();
+  </script>
+
   <script src="app.js"></script>
 </body>
 </html>

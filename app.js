@@ -261,3 +261,67 @@
   };
   captureRefFromLaunch();
 })();
+// === Promo slider (автоперелистывание + прогресс) ===
+(function () {
+  const viewport = document.getElementById('promoViewport');
+  const slides = Array.from(viewport.querySelectorAll('.promo-slide'));
+  const dotsWrap = document.getElementById('promoDots');
+  const dots = Array.from(dotsWrap.querySelectorAll('.promo-dot'));
+  const DURATION_MS = 5000; // время показа одного слайда
+  let idx = 0;
+  let t = null;
+
+  function setActive(newIndex, withTimer = true) {
+    // гварды
+    if (!slides.length) return;
+    newIndex = (newIndex + slides.length) % slides.length;
+
+    // слайды
+    slides.forEach((s, i) => s.classList.toggle('is-active', i === newIndex));
+
+    // индикаторы
+    dots.forEach((d, i) => {
+      d.classList.toggle('is-active', i === newIndex);
+      const fill = d.querySelector('.promo-fill');
+      fill.style.width = (i === newIndex && withTimer) ? '0%' : '0%';
+      fill.style.transitionDuration = '0ms';
+      // реflow, чтобы анимация ширины перезапустилась
+      void fill.offsetWidth;
+      if (i === newIndex && withTimer) {
+        fill.style.transitionDuration = DURATION_MS + 'ms';
+        fill.style.width = '100%';
+      }
+    });
+
+    idx = newIndex;
+    restartTimer();
+  }
+
+  function next() { setActive(idx + 1); }
+
+  function restartTimer() {
+    if (t) clearTimeout(t);
+    t = setTimeout(next, DURATION_MS);
+  }
+
+  // клики по точкам
+  dotsWrap.addEventListener('click', (e) => {
+    const btn = e.target.closest('.promo-dot');
+    if (!btn) return;
+    const to = parseInt(btn.dataset.to, 10) || 0;
+    setActive(to);
+  });
+
+  // свайп на мобильных (минималистично)
+  let startX = null;
+  viewport.addEventListener('pointerdown', (e) => { startX = e.clientX; });
+  viewport.addEventListener('pointerup', (e) => {
+    if (startX == null) return;
+    const dx = e.clientX - startX;
+    if (Math.abs(dx) > 30) setActive(idx + (dx < 0 ? 1 : -1));
+    startX = null;
+  });
+
+  // автозапуск
+  setActive(0);
+})();

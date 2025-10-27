@@ -6,14 +6,89 @@
   <title>StarsBox — Главная</title>
   <link rel="stylesheet" href="styles.css" />
 
-  <!-- Мини-стили модалки -->
+  <!-- Локальные стили: модалка + промо-слайдер -->
   <style>
+    /* ===== Modal (StarsCoin WIP) ===== */
     .sc-modal-backdrop{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.5)}
     .sc-modal-card{background:#fff;color:#111;max-width:420px;width:calc(100% - 32px);border-radius:16px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.2)}
     .sc-modal-card h3{margin:0 0 8px;font-size:18px}
     .sc-modal-actions{display:flex;justify-content:flex-end;margin-top:12px}
     .sc-btn{background:#111;color:#fff;border:none;border-radius:12px;padding:8px 14px;cursor:pointer}
     .sc-hidden{display:none}
+
+    /* ===== Promo Slider ===== */
+    .promo { margin-top: 12px; }
+    .promo-viewport{
+      position: relative;
+      width: 100%;
+      height: 120px;            /* компактно для WebApp; можно увеличить до 140–160 */
+      border-radius: 14px;
+      overflow: hidden;
+    }
+    @media (min-width: 540px){ .promo-viewport{ height: 140px; } }
+
+    .promo-slide{
+      position:absolute; inset:0;
+      display:flex; align-items:center; justify-content:space-between;
+      padding:16px 18px;
+      color:#fff;
+      text-decoration:none;
+      opacity:0; transform:translateX(12px) scale(.98);
+      transition:opacity .45s ease, transform .45s ease;
+      will-change: opacity, transform;
+    }
+    .promo-slide.is-active{ opacity:1; transform:translateX(0) scale(1); pointer-events:auto; }
+    .promo-slide:not(.is-active){ pointer-events:none; }
+
+    .promo-copy{ z-index:2; }
+    .promo-title{ font-size:20px; font-weight:800; line-height:1.1; letter-spacing:.2px; }
+    .promo-sub{ margin-top:6px; font-size:13px; opacity:.95 }
+    .promo-badge{
+      display:inline-block; margin-top:8px;
+      font-size:12px; padding:6px 10px; border-radius:999px; background:rgba(255,255,255,.18); backdrop-filter: blur(4px)
+    }
+
+    /* Декор справа: иконки с лёгким парением */
+    .promo-art{ position:relative; width:46%; height:100%; display:flex; align-items:center; justify-content:flex-end; gap:8px }
+    .promo-blob{
+      position:absolute; right:-10%; top:-20%;
+      width:260px; height:260px; border-radius:50%;
+      filter: blur(40px); opacity:.55; transform: translateZ(0);
+      pointer-events:none;
+    }
+    .promo-img{
+      width:60px; height:60px; object-fit:contain; filter: drop-shadow(0 8px 20px rgba(0,0,0,.25));
+      animation: float 4s ease-in-out infinite;
+    }
+    .promo-img:nth-child(2){ animation-delay: .2s }
+    .promo-img:nth-child(3){ animation-delay: .4s }
+    @keyframes float{
+      0%,100%{ transform: translateY(0) }
+      50%{ transform: translateY(-6px) }
+    }
+
+    /* Прогресс-индикаторы */
+    .promo-indicators{
+      display:flex; gap:8px; margin-top:10px; height:4px;
+    }
+    .pi{
+      position:relative; flex:1; height:4px; border:0; padding:0; border-radius:999px;
+      background:rgba(255,255,255,.12); overflow:hidden; cursor:pointer;
+    }
+    .pi__bar{
+      position:absolute; inset:0; width:0%;
+      background:#fff; opacity:.9;
+      transition: width .2s linear;
+    }
+    .pi.is-active{ background:rgba(255,255,255,.22); }
+    .pi:focus-visible{ outline:2px solid #fff; outline-offset:2px }
+
+    /* Градиенты под каждый слайд */
+    .grad-stars   { background: radial-gradient(120% 120% at 100% 0%, #55C1FF 0%, #3A68FF 45%, #1a1f3b 100%) }
+    .grad-premium { background: radial-gradient(120% 120% at 100% 0%, #F8C390 0%, #F46B45 45%, #271a1a 100%) }
+    .grad-ton     { background: radial-gradient(120% 120% at 100% 0%, #7FFFD4 0%, #00C2A8 45%, #0f2624 100%) }
+    .grad-gifts   { background: radial-gradient(120% 120% at 100% 0%, #FF8BD0 0%, #8956FF 45%, #1f1632 100%) }
+    .grad-steam   { background: radial-gradient(120% 120% at 100% 0%, #B3E5FC 0%, #455A64 45%, #0c1114 100%) }
   </style>
 </head>
 <body class="home-page">
@@ -35,9 +110,7 @@
         <span class="sc-icon" aria-hidden="true">
           <img src="assets/icons/icon3.png" alt="">
         </span>
-
         <span id="starsCoinText" class="sc-text">0 COIN</span>
-
         <span class="sc-plus" aria-hidden="true">+</span>
       </a>
     </div>
@@ -45,115 +118,167 @@
 
   <!-- ===== Контент ===== -->
   <main class="wrap" id="pageRoot">
-    <!-- Новости -->
-    <section class="news">
-      <h2 class="section-title">Новости и акции</h2>
+    <!-- ===== Промо-слайдер (вместо прежних карточек “Новости и акции”) ===== -->
+    <section class="promo" aria-label="Новости и акции">
+      <div class="promo-viewport" id="promoViewport">
 
-      <div class="news-rail" id="newsRail">
-        <a class="news-card" href="./pages/stars/index.html" aria-label="Покупайте звезды">
-          <span class="news-card__bg" style="--img:url('./assets/backgrounds/stars3.png')"></span>
-          <span class="news-card__title">Покупайте звезды</span>
+        <!-- 1. Stars -->
+        <a class="promo-slide grad-stars is-active"
+           href="./pages/stars/index.html"
+           aria-label="Купить звезды в Telegram">
+          <div class="promo-copy">
+            <div class="promo-title">Звёзды — быстро и выгодно</div>
+            <div class="promo-sub">Моментальная автодоставка. Бонусы на объём.</div>
+            <span class="promo-badge">Кэшбек до 7%</span>
+          </div>
+          <div class="promo-art" aria-hidden="true">
+            <div class="promo-blob" style="background: radial-gradient(closest-side, #66ccff, transparent)"></div>
+            <img class="promo-img" src="assets/icons/icon3.png" alt="">
+            <img class="promo-img" src="assets/icons/icon3.png" alt="" style="width:48px; opacity:.9">
+            <img class="promo-img" src="assets/icons/icon3.png" alt="" style="width:40px; opacity:.8">
+          </div>
         </a>
 
-        <a class="news-card" href="./pages/steam/index.html" aria-label="Пополняйте Steam">
-          <span class="news-card__bg" style="--img:url('./assets/backgrounds/steam.jpg')"></span>
-          <span class="news-card__title">Пополняйте Steam</span>
+        <!-- 2. Premium -->
+        <a class="promo-slide grad-premium"
+           href="./pages/premium/index.html"
+           aria-label="Купить Telegram Premium">
+          <div class="promo-copy">
+            <div class="promo-title">Premium — 3/6/12 месяцев</div>
+            <div class="promo-sub">Дарите друзьям и себе. Оформление за пару тапов.</div>
+            <span class="promo-badge">-10% на год</span>
+          </div>
+          <div class="promo-art" aria-hidden="true">
+            <div class="promo-blob" style="background: radial-gradient(closest-side, #ffc78d, transparent)"></div>
+            <img class="promo-img" src="assets/icons/icon16.png" alt="">
+            <img class="promo-img" src="assets/icons/icon16.png" alt="" style="width:48px; opacity:.9">
+            <img class="promo-img" src="assets/icons/icon16.png" alt="" style="width:40px; opacity:.8">
+          </div>
         </a>
 
-        <a class="news-card" href="./pages/ton/index.html" aria-label="Покупайте TON">
-          <span class="news-card__bg" style="--img:url('./assets/backgrounds/ton.png')"></span>
-          <span class="news-card__title">Покупайте Ton</span>
+        <!-- 3. TON -->
+        <a class="promo-slide grad-ton"
+           href="./pages/ton/index.html"
+           aria-label="Купить TON">
+          <div class="promo-copy">
+            <div class="promo-title">TON — пополняйте с комфортом</div>
+            <div class="promo-sub">Платёжная магистраль Telegram. Прозрачный курс.</div>
+            <span class="promo-badge">Низкая комиссия</span>
+          </div>
+          <div class="promo-art" aria-hidden="true">
+            <div class="promo-blob" style="background: radial-gradient(closest-side, #8fffd9, transparent)"></div>
+            <img class="promo-img" src="assets/icons/icon17.png" alt="">
+            <img class="promo-img" src="assets/icons/icon17.png" alt="" style="width:48px; opacity:.9">
+            <img class="promo-img" src="assets/icons/icon17.png" alt="" style="width:40px; opacity:.8">
+          </div>
         </a>
 
-        <a class="news-card" href="./pages/gifts/index.html" aria-label="Подарки для друзей">
-          <span class="news-card__bg" style="--img:url('./assets/backgrounds/gifts.png')"></span>
-          <span class="news-card__title">Подарки для друзей</span>
+        <!-- 4. Gifts -->
+        <a class="promo-slide grad-gifts"
+           href="./pages/gifts/index.html"
+           aria-label="Подарки в Telegram">
+          <div class="promo-copy">
+            <div class="promo-title">Подарки — впечатление в один клик</div>
+            <div class="promo-sub">Выбирайте коллекции. Лента обрадуется.</div>
+            <span class="promo-badge">Тренд недели</span>
+          </div>
+          <div class="promo-art" aria-hidden="true">
+            <div class="promo-blob" style="background: radial-gradient(closest-side, #ff97d7, transparent)"></div>
+            <img class="promo-img" src="assets/icons/icon15.png" alt="">
+            <img class="promo-img" src="assets/icons/icon15.png" alt="" style="width:48px; opacity:.9">
+            <img class="promo-img" src="assets/icons/icon15.png" alt="" style="width:40px; opacity:.8">
+          </div>
+        </a>
+
+        <!-- 5. Steam -->
+        <a class="promo-slide grad-steam"
+           href="./pages/steam/index.html"
+           aria-label="Пополнение Steam">
+          <div class="promo-copy">
+            <div class="promo-title">Steam — пополнение кошелька</div>
+            <div class="promo-sub">Выгодный курс. Быстрые транзакции.</div>
+            <span class="promo-badge">Кэшбек до 5%</span>
+          </div>
+          <div class="promo-art" aria-hidden="true">
+            <div class="promo-blob" style="background: radial-gradient(closest-side, #9fd7ef, transparent)"></div>
+            <img class="promo-img" src="assets/icons/icon4.png" alt="">
+            <img class="promo-img" src="assets/icons/icon4.png" alt="" style="width:48px; opacity:.9">
+            <img class="promo-img" src="assets/icons/icon4.png" alt="" style="width:40px; opacity:.8">
+          </div>
         </a>
       </div>
 
-      <div class="section-divider" aria-hidden="true"></div>
+      <!-- прогресс-линии -->
+      <div class="promo-indicators" id="promoIndicators" aria-label="Переключение акций">
+        <button class="pi is-active" aria-label="Слайд 1"><span class="pi__bar"></span></button>
+        <button class="pi" aria-label="Слайд 2"><span class="pi__bar"></span></button>
+        <button class="pi" aria-label="Слайд 3"><span class="pi__bar"></span></button>
+        <button class="pi" aria-label="Слайд 4"><span class="pi__bar"></span></button>
+        <button class="pi" aria-label="Слайд 5"><span class="pi__bar"></span></button>
+      </div>
     </section>
 
-    <!-- Панели продуктов -->
+    <!-- ===== Остальной контент (панели продуктов и т.п.) остаётся без изменений ===== -->
     <section class="product-panels" aria-label="Выберите продукт">
       <h2 class="sec-title">Выберите продукт</h2>
-
       <div class="panels-grid">
-        <!-- Звезды -->
         <a class="panel panel--lg panel--stars" href="pages/stars/index.html">
           <div class="panel__inner">
             <div>
               <div class="panel__title">Купить звезды</div>
               <div class="panel__sub">Быстрое пополнение</div>
             </div>
-            <div class="panel__pill">
-              <img src="assets/icons/icon3.png" alt="">
-            </div>
+            <div class="panel__pill"><img src="assets/icons/icon3.png" alt=""></div>
           </div>
         </a>
 
-        <!-- TON -->
         <a class="panel panel--sm panel--ton" href="pages/ton/index.html">
           <div class="panel__inner">
             <div>
               <div class="panel__title">Купить TON</div>
               <div class="panel__sub">Валюта Telegram</div>
             </div>
-            <div class="panel__pill">
-              <img src="assets/icons/icon17.png" alt="">
-            </div>
+            <div class="panel__pill"><img src="assets/icons/icon17.png" alt=""></div>
           </div>
         </a>
 
-        <!-- Подарки -->
         <a class="panel panel--md panel--gifts" href="pages/gifts/index.html">
           <div class="panel__inner">
             <div>
               <div class="panel__title">Подарки</div>
               <div class="panel__sub">Себе и друзьям</div>
             </div>
-            <div class="panel__pill">
-              <img src="assets/icons/icon15.png" alt="">
-            </div>
+            <div class="panel__pill"><img src="assets/icons/icon15.png" alt=""></div>
           </div>
         </a>
 
-        <!-- Premium -->
         <a class="panel panel--md panel--premium" href="pages/premium/index.html">
           <div class="panel__inner">
             <div>
               <div class="panel__title">Premium</div>
               <div class="panel__sub">Подписка в два клика</div>
             </div>
-            <div class="panel__pill">
-              <img src="assets/icons/icon16.png" alt="">
-            </div>
+            <div class="panel__pill"><img src="assets/icons/icon16.png" alt=""></div>
           </div>
         </a>
 
-        <!-- Steam (на всю ширину) -->
         <a class="panel panel--full panel--steam" href="pages/steam/index.html">
           <div class="panel__inner">
             <div>
               <div class="panel__title">Пополняйте Steam</div>
               <div class="panel__sub">По самому выгодному курсу</div>
             </div>
-            <div class="panel__pill">
-              <img src="assets/icons/icon4.png" alt="">
-            </div>
+            <div class="panel__pill"><img src="assets/icons/icon4.png" alt=""></div>
           </div>
         </a>
 
-        <!-- Referral (на всю ширину, как Steam) -->
         <a class="panel panel--full panel--ref" href="pages/ref/index.html" aria-label="Реферальная программа">
           <div class="panel__inner">
             <div>
               <div class="panel__title">Реферальная программа</div>
               <div class="panel__sub">Зарабатывай с нами</div>
             </div>
-            <div class="panel__pill">
-              <img src="assets/icons/акции.png" alt="">
-            </div>
+            <div class="panel__pill"><img src="assets/icons/акции.png" alt=""></div>
           </div>
         </a>
       </div>
@@ -174,46 +299,72 @@
   <!-- Telegram WebApp SDK -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
-  <!-- Локальный JS: перехват клика по пилюле и показ модалки -->
+  <!-- JS: модалка + слайдер -->
   <script>
+    // ===== StarsCoin modal
     (function () {
       const pill = document.getElementById("starsCoinBtn");
       const modal = document.getElementById("starscoinModal");
       const btnClose = document.getElementById("scModalClose");
-
-      function openModal() {
-        modal.classList.remove("sc-hidden");
-        document.body.style.overflow = "hidden";
-        // лёгкая тактильная отдача в Telegram WebApp (не критично)
-        try { Telegram?.WebApp?.HapticFeedback?.impactOccurred("light"); } catch {}
-        // блокируем swipe-закрытие мини-аппа поверх модалки
-        try { Telegram?.WebApp?.enableClosingConfirmation(); } catch {}
-      }
-
-      function closeModal() {
-        modal.classList.add("sc-hidden");
-        document.body.style.overflow = "";
-        try { Telegram?.WebApp?.disableClosingConfirmation(); } catch {}
-      }
-
-      pill.addEventListener("click", function (e) {
-        // Блокируем переход по href
-        e.preventDefault();
-        e.stopPropagation();
-        openModal();
-      });
-
+      function openModal(){ modal.classList.remove("sc-hidden"); document.body.style.overflow="hidden"; try{Telegram?.WebApp?.HapticFeedback?.impactOccurred("light")}catch{} try{Telegram?.WebApp?.enableClosingConfirmation()}catch{} }
+      function closeModal(){ modal.classList.add("sc-hidden"); document.body.style.overflow=""; try{Telegram?.WebApp?.disableClosingConfirmation()}catch{} }
+      pill.addEventListener("click", (e)=>{ e.preventDefault(); e.stopPropagation(); openModal(); });
       btnClose.addEventListener("click", closeModal);
+      modal.addEventListener("click", (e)=>{ if(e.target===modal) closeModal(); });
+      document.addEventListener("keydown", (e)=>{ if(e.key==="Escape" && !modal.classList.contains("sc-hidden")) closeModal(); });
+    })();
 
-      // Клик по фону — тоже закрывает
-      modal.addEventListener("click", (e) => {
-        if (e.target === modal) closeModal();
+    // ===== Promo slider
+    (function () {
+      const DURATION = 4200;             // длительность показа одного слайда (мс)
+      const slides = Array.from(document.querySelectorAll(".promo-slide"));
+      const indicators = Array.from(document.querySelectorAll(".promo-indicators .pi"));
+      const bars = indicators.map(b => b.querySelector(".pi__bar"));
+      let idx = 0, timer = null, paused = false;
+
+      function setActive(i, manual=false){
+        idx = (i + slides.length) % slides.length;
+
+        slides.forEach((s,j)=>{
+          if(j===idx){ s.classList.add("is-active"); s.setAttribute("aria-hidden","false"); }
+          else{ s.classList.remove("is-active"); s.setAttribute("aria-hidden","true"); }
+        });
+
+        indicators.forEach((b,j)=>{
+          b.classList.toggle("is-active", j===idx);
+          bars[j].style.transition = "none";
+          bars[j].style.width = (j<idx)? "100%" : "0%";
+          // force reflow
+          void bars[j].offsetWidth;
+          bars[j].style.transition = `width ${DURATION}ms linear`;
+        });
+
+        // запустить прогресс у текущего
+        bars[idx].style.width = "100%";
+
+        // таймер автопереключения
+        if(timer) clearTimeout(timer);
+        if(!paused){
+          timer = setTimeout(()=> setActive(idx+1), DURATION);
+        }
+      }
+
+      // клики по индикаторам
+      indicators.forEach((btn, j)=>{
+        btn.addEventListener("click", ()=> setActive(j, true));
       });
 
-      // Esc — закрыть
-      document.addEventListener("keydown", (e) => {
-        if (e.key === "Escape" && !modal.classList.contains("sc-hidden")) closeModal();
+      // пауза при удержании/hover (нужно на десктопе)
+      const vp = document.getElementById("promoViewport");
+      ["pointerenter","touchstart","mousedown"].forEach(ev=>{
+        vp.addEventListener(ev, ()=>{ paused = true; if(timer) clearTimeout(timer); });
       });
+      ["pointerleave","touchend","mouseup"].forEach(ev=>{
+        vp.addEventListener(ev, ()=>{ paused = false; setActive(idx); });
+      });
+
+      // старт
+      setActive(0);
     })();
   </script>
 

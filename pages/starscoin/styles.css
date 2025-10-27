@@ -145,13 +145,17 @@ body.sc-page::before{
 }
 .modal__title{ margin:0 0 12px; font-size:16px; font-weight:500 }
 .modal__actions{ display:grid; grid-template-columns: 1fr; gap:8px; margin-top:12px }
-.modal__actions .btn{ width:100%; }
+.modal__actions .btn{
+  width:100%;
+  justify-content: center;            /* центрируем текст и содержимое */
+}
 .close-x{ position:absolute; right:12px; top:12px; width:28px; height:28px; border-radius:10px; border:1px solid var(--btn-brd); background:var(--btn-bg) }
 .close-x:before,.close-x:after{ content:""; position:absolute; left:50%; top:50%; width:12px; height:2px; background:#fff; transform-origin:center }
 .close-x:before{ transform:translate(-50%,-50%) rotate(45deg) } .close-x:after{ transform:translate(-50%,-50%) rotate(-45deg) }
 
 /* ===== Поля обмена (фикс раскладки) ===== */
 .fields-row{
+  position: relative;                 /* добавили: для надёжного центрирования */
   display:grid;
   grid-template-columns: 1fr 40px 1fr;   /* поле | иконка | поле */
   grid-template-rows: auto 42px;         /* заголовки | сами поля */
@@ -163,8 +167,6 @@ body.sc-page::before{
 .field{ display:grid; gap:6px; }
 .field--left { grid-column:1; grid-row:1 / span 2; }
 .field--right{ grid-column:3; grid-row:1 / span 2; }
-
-/* подписи */
 .field label{ font-size:13px; color:var(--muted) }
 
 /* инпут с иконкой */
@@ -174,7 +176,6 @@ body.sc-page::before{
   background:var(--btn-bg); color:var(--text); padding:0 12px 0 42px; font-size:14px;
 }
 .inp[readonly]{ opacity:.9; cursor:not-allowed; user-select:none; }
-
 .inp-ico{
   position:absolute; left:10px; top:50%; transform:translateY(-50%);
   width:22px; height:22px; object-fit:contain; opacity:.95; pointer-events:none;
@@ -182,14 +183,14 @@ body.sc-page::before{
 
 /* иконка обмена — строго в строке инпутов */
 .swap-ico{
-  grid-column: 2;
-  grid-row: 2;                 /* ровно между инпутами */
-  align-self: center;
-  justify-self: center;
+  grid-column: 1 / -1;               /* тянем на всю сетку */
+  grid-row: 2;                        /* на линии инпутов */
+  justify-self: center;               /* по центру по горизонтали */
+  align-self: center;                 /* по центру по вертикали */
   width:32px; height:32px;
   background:none; border:0; color:#fff;
   font-weight:700; line-height:32px; font-size:20px;
-  z-index:1;
+  pointer-events: none;               /* иконка «пассивная» */
 }
 
-.rate-note{ margin:10px 2px 0; font-size:12px; color:var(--muted) }
+.rate-note{ margin:10px 2px 0; font-size:12px; color:var(--muted); text-align:center; }

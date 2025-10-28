@@ -467,3 +467,19 @@ body.home-page::before{
 .sc-modal-actions{display:flex;justify-content:flex-end;margin-top:12px}
 .sc-btn{background:#111;color:#fff;border:none;border-radius:12px;padding:8px 14px;cursor:pointer}
 .sc-hidden{display:none}
+
+/* Значение по умолчанию (десктоп/веб) */
+:root { --tg-extra-top: 0px; }
+
+/* Только когда мы включили мобильный режим из JS */
+body.tg-mobile .topbar {
+  /* учитываем вырезы/системную строку iOS + наш небольшой андроид-добавок */
+  padding-top: calc(20px + env(safe-area-inset-top, 0px) + var(--tg-extra-top));
+}
+
+/* На очень узких экранах чуть увеличим базовую высоту топбара */
+@media (max-width: 360px) {
+  body.tg-mobile .topbar {
+    padding-top: calc(22px + env(safe-area-inset-top, 0px) + var(--tg-extra-top));
+  }
+}

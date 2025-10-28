@@ -1,4 +1,50 @@
-﻿(function () {
+﻿(function initTelegramMobileOnly() {
+  const tg = window.Telegram?.WebApp;
+  if (!tg) return;
+
+  // простая проверка платформы от Telegram SDK
+  const isMobile = tg.platform === 'android' || tg.platform === 'ios';
+  if (!isMobile) return; // десктоп/веб — выходим, ничего не включаем
+
+  // помечаем <body>, чтобы в CSS дать безопасные отступы и прочие моб.правки
+  document.body.classList.add('tg-mobile');
+
+  // максимальная высота вебвью
+  tg.expand();
+
+  // отключаем "свайп вниз = свернуть"
+  if (typeof tg.disableVerticalSwipes === 'function') {
+    tg.disableVerticalSwipes();
+  }
+
+  // подтверждение на закрытие (крестик/назад)
+  if (typeof tg.enableClosingConfirmation === 'function') {
+    tg.enableClosingConfirmation();
+  }
+
+  // перехватываем back на Android под свой сценарий
+  if (tg.BackButton) {
+    tg.BackButton.show();
+    tg.BackButton.onClick(() => {
+      tg.showConfirm('Закрыть приложение?', (ok) => ok && tg.close());
+    });
+  }
+
+  // доп. метрика «безопасной зоны»: немного приподнимем контент на Android
+  // (iOS покроется через CSS env(safe-area-inset-top))
+  if (tg.platform === 'android') {
+    document.documentElement.style.setProperty('--tg-extra-top', '10px');
+  }
+
+  // если нужно реагировать на изменение вьюпорта (клава/системные панели)
+  tg.onEvent?.('viewportChanged', () => {
+    // можно при желании динамически подправлять отступы
+    // пример: держим минимум 6px
+    const extra = tg.platform === 'android' ? 10 : 0;
+    document.documentElement.style.setProperty('--tg-extra-top', `${extra}px`);
+  });
+})();
+(function () {
   function ready(fn) {
     if (document.readyState !== 'loading') fn();
     else document.addEventListener('DOMContentLoaded', fn, { once: true });

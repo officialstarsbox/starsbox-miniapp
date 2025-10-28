@@ -378,29 +378,32 @@ body.home-page::before{
 .promo-viewport {
   position: relative;
   width: 100%;
-  height: clamp(110px, 15vw, 140px); /* адаптивная высота */
+  aspect-ratio: 4 / 1;          /* << держим пропорцию тут */
   border-radius: 16px;
   overflow: hidden;
+  background: #10141d;          /* << фон, чтобы не было белой линии */
+  line-height: 0;               /* << убивает baseline gap */
 }
 .promo-slide {
-  position: relative;
+  position: absolute;           /* << было relative */
+  inset: 0;                     /* << растянуть по контейнеру */
   display: block;
-  width: 100%;
-  /* Современный способ: фиксируем аспект (4:1) */
-  aspect-ratio: 4 / 1;
-
   border-radius: 16px;
   overflow: hidden;
-  box-shadow: 0 6px 18px rgba(0,0,0,.25);
-  background: #10141d; /* запасной фон пока грузится картинка */
+  box-shadow: none;             /* опционально: тень даёт артефакты на радиусе */
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(0) scale(1);
+  transition: opacity .25s linear;
 }
 .promo-slide.is-active {
-  opacity: 1; transform: translateX(0) scale(1);
+  opacity: 1;
   pointer-events: auto;
 }
 .promo-bg {
   position: absolute; inset: 0;
   width: 100%; height: 100%;
+  display: block;               /* << убирает возможную щель */
   object-fit: cover; object-position: center;
 }
 .promo-copy {
@@ -445,17 +448,8 @@ body.home-page::before{
   display: block;
 }
 
-/* Фолбэк для старых Safari/Android, где нет aspect-ratio */
 @supports not (aspect-ratio: 4 / 1) {
-  .promo-slide {
-    height: 0;
-    padding-top: 25%; /* 1 / 4 = 25% — даёт нужный внутренний аспект */
-  }
-  .promo-slide > picture,
-  .promo-slide > .promo-img {
-    position: absolute;
-    inset: 0;
-  }
+  .promo-viewport { height: 130px; }     /* выбери желаемую высоту */
 }
 
 /* Небольшая адаптация под очень узкие экраны: увеличим визуальную высоту */

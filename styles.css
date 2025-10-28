@@ -383,12 +383,16 @@ body.home-page::before{
   overflow: hidden;
 }
 .promo-slide {
-  position: absolute; inset: 0;
+  position: relative;
   display: block;
-  text-decoration: none;
-  opacity: 0; transform: translateX(8px) scale(.98);
-  transition: opacity .5s ease, transform .5s ease;
-  outline: none;
+  width: 100%;
+  /* Современный способ: фиксируем аспект (4:1) */
+  aspect-ratio: 4 / 1;
+
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 6px 18px rgba(0,0,0,.25);
+  background: #10141d; /* запасной фон пока грузится картинка */
 }
 .promo-slide.is-active {
   opacity: 1; transform: translateX(0) scale(1);
@@ -431,7 +435,33 @@ body.home-page::before{
   background: linear-gradient(90deg, #38bdf8, #22c55e);
   transition: width linear;
 }
+.promo-img {
+  position: absolute;
+  inset: 0;            /* top/right/bottom/left: 0 */
+  width: 100%;
+  height: 100%;
+  object-fit: cover;   /* сохраняет пропорции, заполняя весь бокс */
+  object-position: center;
+  display: block;
+}
 
+/* Фолбэк для старых Safari/Android, где нет aspect-ratio */
+@supports not (aspect-ratio: 4 / 1) {
+  .promo-slide {
+    height: 0;
+    padding-top: 25%; /* 1 / 4 = 25% — даёт нужный внутренний аспект */
+  }
+  .promo-slide > picture,
+  .promo-slide > .promo-img {
+    position: absolute;
+    inset: 0;
+  }
+}
+
+/* Небольшая адаптация под очень узкие экраны: увеличим визуальную высоту */
+@media (max-width: 360px) {
+  .promo-slide { aspect-ratio: 3.6 / 1; } /* чуть выше панель */
+}
 @media (prefers-reduced-motion: reduce) {
   .promo-slide { transition: none; }
   .promo-fill { transition: none !important; }
